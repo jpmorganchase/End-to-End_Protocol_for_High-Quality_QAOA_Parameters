@@ -16,6 +16,7 @@ from utils import (
     get_problem_H,
     scale_map,
     generate_dicke_state_fast,
+    get_sk_ini,
 )
 from circuit_utils import (
     get_configuration_cost_slow,
@@ -34,7 +35,7 @@ import matplotlib.pyplot as plt
 import nlopt
 import time
 
-n_shot = 1e3
+n_shot = 1e9
 def minimize_nlopt(f, X0, rhobeg=None, p=None):
     all_solution = []
     def nlopt_wrapper(x, grad):
@@ -123,13 +124,19 @@ def kbits(n, k):
             s[bit] = 1
         yield np.array(s)
         
+data_dir = "data/random"
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
+out_dir = "traces_shot"
+if not os.path.exists(out_dir):
+    os.makedirs(out_dir)
 
-for N in [10]: #,11,15
+for N in [14]: #,11,15
     K = int(N/2)
     q = 0.5
     for seed in range(10):
-        po_path = f'data/random/po_problem_rule_{N}_{K}_{q}_seed{seed}.pckl'
-        energy_path = f'data/random/precomputed_energies_rule_{N}_{K}_{q}_seed{seed}.npy'
+        po_path = f'{data_dir}/po_problem_rule_{N}_{K}_{q}_seed{seed}.pckl'
+        energy_path = f'{data_dir}/precomputed_energies_rule_{N}_{K}_{q}_seed{seed}.npy'
         if Path(po_path).exists() and Path(energy_path).exists():
             precomputed_energies = np.load(energy_path)
             po_problem = pickle.load(open(po_path, 'rb'))
@@ -167,8 +174,8 @@ for N in [10]: #,11,15
             np.save(energy_path, precomputed_energies, allow_pickle=False)
             pickle.dump(po_problem, open(po_path, 'wb'))
          ########################
-        for p in range(1,13):
-            outpath = f'traces_shot/{N}_{K}_{q}_{seed}_p{p+1}_shot{int(n_shot)}_SK_init.pickle'
+        for p in range(1,6):
+            outpath = f'{out_dir}/{N}_{K}_{q}_{seed}_p{p+1}_shot{int(n_shot)}_SK_init.pickle'
             # if not Path(outpath).exists():
             if True:
                 np.random.seed(seed)
