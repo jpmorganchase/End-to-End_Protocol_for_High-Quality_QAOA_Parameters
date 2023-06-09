@@ -42,7 +42,7 @@ def kbits(n, k):
             s[bit] = 1
         yield np.array(s)
         
-for N in range(6,11):
+for N in [14]:
     # for K in [1,2,3,4]:
     K = N//2 #, 5
     q = 0.5
@@ -54,9 +54,11 @@ for N in range(6,11):
         if Path(po_path).exists() and Path(energy_path).exists():
             precomputed_energies = np.load(energy_path)
             po_problem = pickle.load(open(po_path, 'rb'))
+            scale = po_problem["scale"]
         else:
             po_problem_unscaled=get_problem(N, K, q, seed, pre=1)
-            scale = 1 / (0.5*(np.sqrt(np.mean((po_problem_unscaled['cov']**2).flatten()))+np.sqrt(np.mean((po_problem_unscaled['means']**2).flatten()))))
+            means_in_spins = np.array([po_problem_unscaled['means'][i] - po_problem_unscaled['q'] * np.sum(po_problem_unscaled['cov'][i, :]) for i in range(len(po_problem_unscaled['means']))])
+            scale = 1 / (np.sqrt(np.mean((( po_problem_unscaled['q']*po_problem_unscaled['cov'])**2).flatten()))+np.sqrt(np.mean((means_in_spins**2).flatten())))
             print(f'scale = {scale}')
             po_problem = get_problem(N=N,K=K,q=q,seed=seed,pre=scale)
            
