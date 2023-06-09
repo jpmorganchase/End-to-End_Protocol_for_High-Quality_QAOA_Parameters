@@ -35,7 +35,7 @@ import matplotlib.pyplot as plt
 import nlopt
 import time
 
-n_shot = 1e9
+n_shot = 1e5
 def minimize_nlopt(f, X0, rhobeg=None, p=None):
     all_solution = []
     def nlopt_wrapper(x, grad):
@@ -174,7 +174,7 @@ for N in [14]: #,11,15
             np.save(energy_path, precomputed_energies, allow_pickle=False)
             pickle.dump(po_problem, open(po_path, 'wb'))
          ########################
-        for p in range(1,6):
+        for p in range(1,2):
             outpath = f'{out_dir}/{N}_{K}_{q}_{seed}_p{p+1}_shot{int(n_shot)}_SK_init.pickle'
             # if not Path(outpath).exists():
             if True:
@@ -183,6 +183,7 @@ for N in [14]: #,11,15
                 if sk_ini is True:
                     gamma, beta = get_sk_ini(p)
                     X0 = np.concatenate((gamma,beta),axis=0)
+                    X0 = np.array([-1, 1], dtype=float)
                 else:
                     X0 = np.random.rand(p*2)
                 ##########################
