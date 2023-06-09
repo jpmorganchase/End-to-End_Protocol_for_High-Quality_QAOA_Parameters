@@ -88,8 +88,8 @@ for N in [10]: #,11,15
                 # print(energy_mean.requires_grad, energy_mean.grad, 1)
                 # print(energy_std.requires_grad, energy_std.grad, 2)
                 # print(torch.normal(energy_mean, energy_std).requires_grad, torch.normal(energy_mean, energy_std).grad, 3)
-                return energy_mean + torch.normal(0, energy_std)
-                # return torch.normal(energy_mean, energy_std)
+                epsilon = torch.randn_like(energy_std)
+                return energy_mean + epsilon*energy_std
                 
         for p in range(1,13):
             if nshot is False:
