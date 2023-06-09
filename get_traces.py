@@ -79,7 +79,7 @@ def kbits(n, k):
 data_dir = "data/random"
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)
-out_dir = "trace"
+out_dir = "traces"
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
@@ -126,15 +126,16 @@ for N in [14]: #,11,15
             np.save(energy_path, precomputed_energies, allow_pickle=False)
             pickle.dump(po_problem, open(po_path, 'wb'))
          ########################
-        for p in range(1,6):
+        for p in range(1,2):
             outpath = f'{out_dir}/{N}_{K}_{q}_{seed}_p{p+1}_SK_init.pickle'
-            if not Path(outpath).exists():
-            # if True:
+            # if not Path(outpath).exists():
+            if True:
                 np.random.seed(seed)
                 sk_ini = True
                 if sk_ini is True:
                     gamma, beta = get_sk_ini(p)
                     X0 = np.concatenate((gamma,beta),axis=0)
+                    X0 = np.array([-1, 1], dtype=float)
                 else:
                     X0 = np.random.rand(p*2)
                     
