@@ -78,14 +78,14 @@ def get_trace(N, K, X0, precomputed_energies, factor=1):
         trace.append(en)
         return en
 
-    res = minimize_skquant(
-        f,
-        X0,
-        bounds=np.array([[-1.4, -0.8], [0.9, 1.3]], dtype=float),
-        budget=budget,
-        method=optimizer,
-    )
-    # res = minimize_nlopt(f, X0, p=p, rhobeg=0.01/p)
+    # res = minimize_skquant(
+    #     f,
+    #     X0,
+    #     bounds=np.array([[-1.4, -0.8], [0.9, 1.3]], dtype=float),
+    #     budget=budget,
+    #     method=optimizer,
+    # )
+    res = minimize_nlopt(f, X0, p=p, rhobeg=0.01 / p)
 
     return trace, res
 
@@ -111,9 +111,7 @@ if __name__ == "__main__":
         q = 0.5
         for seed in range(10):
             po_path = f"{data_dir}/po_problem_rule_{N}_{K}_{q}_seed{seed}.pckl"
-            energy_path = (
-                f"{data_dir}/precomputed_energies_rule_{N}_{K}_{q}_seed{seed}.npy"
-            )
+            energy_path = f"{data_dir}/precomputed_energies_rule_{N}_{K}_{q}_seed{seed}.npy"
             if Path(po_path).exists() and Path(energy_path).exists():
                 precomputed_energies = np.load(energy_path)
                 po_problem = pickle.load(open(po_path, "rb"))
@@ -124,8 +122,7 @@ if __name__ == "__main__":
                 means_in_spins = np.array(
                     [
                         po_problem_unscaled["means"][i]
-                        - po_problem_unscaled["q"]
-                        * np.sum(po_problem_unscaled["cov"][i, :])
+                        - po_problem_unscaled["q"] * np.sum(po_problem_unscaled["cov"][i, :])
                         for i in range(len(po_problem_unscaled["means"]))
                     ]
                 )
@@ -133,8 +130,7 @@ if __name__ == "__main__":
                     np.sqrt(
                         np.mean(
                             (
-                                (po_problem_unscaled["q"] * po_problem_unscaled["cov"])
-                                ** 2
+                                (po_problem_unscaled["q"] * po_problem_unscaled["cov"]) ** 2
                             ).flatten()
                         )
                     )
@@ -185,9 +181,7 @@ if __name__ == "__main__":
 
                     ##########################
                     orig_time0 = time.time()
-                    trace_orig, res_orig = get_trace(
-                        N, K, X0, precomputed_energies, factor=1
-                    )
+                    trace_orig, res_orig = get_trace(N, K, X0, precomputed_energies, factor=1)
                     orig_time = time.time() - orig_time0
                     rescale_time0 = time.time()
                     trace_rescaled, res_rescaled = get_trace(
@@ -201,9 +195,7 @@ if __name__ == "__main__":
                         # precomputed_energies / (np.sqrt(np.mean((po_problem['means']**2).flatten()))),
                     )
                     rescale_time = time.time() - rescale_time0
-                    orig_AR = (res_orig[1] - max_constrained) / (
-                        min_constrained - max_constrained
-                    )
+                    orig_AR = (res_orig[1] - max_constrained) / (min_constrained - max_constrained)
                     rescale_AR = (res_rescaled[1] - max_constrained) / (
                         min_constrained - max_constrained
                     )
