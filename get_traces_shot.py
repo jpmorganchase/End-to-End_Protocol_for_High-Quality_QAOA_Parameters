@@ -1,48 +1,49 @@
 import os
 
-os.environ["OMP_NUM_THREADS"] = "8"
-os.environ["NUMBA_NUM_THREADS"] = "8"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["NUMBA_NUM_THREADS"] = "1"
 
-import numpy as np
-from functools import partial
-from itertools import starmap, product
-import pickle
-from pathlib import Path
 import itertools
+import pickle
+import time
+from functools import partial
+from itertools import product, starmap
+from pathlib import Path
 
-from utils import (
-    get_problem,
-    precompute_energies_parallel,
-    get_adjusted_state,
-    get_problem_H,
-    scale_map,
-    generate_dicke_state_fast,
-    get_sk_ini,
-)
+import matplotlib.pyplot as plt
+import nlopt
+import numpy as np
+from tqdm import tqdm
+
 from circuit_utils import (
-    get_configuration_cost_slow,
-    get_configuration_cost,
-    get_configuration_cost_kw,
     apply_mixer_Txy,
     apply_mixer_Txy_yue,
+    get_configuration_cost,
+    get_configuration_cost_kw,
+    get_configuration_cost_slow,
     get_qaoa_circuit,
     measure_circuit,
 )
-from optimizer import circuit_measurement_function
 from fur import QAOAFURXYRingSimulatorC
 from get_traces import minimize_skquant
+from optimizer import circuit_measurement_function
+from utils import (
+    generate_dicke_state_fast,
+    get_adjusted_state,
+    get_problem,
+    get_problem_H,
+    get_sk_ini,
+    precompute_energies_parallel,
+    scale_map,
+)
 
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-import nlopt
-import time
-
-n_shot_pool = [None, 100, 200, 250, 500, 1000]
-qubit_pool = [14]
+n_shot_pool = [None]
+qubit_pool = range(22, 24, 2)
 depth_pool = [1]
-seed_pool = range(10)
-optimizer = "snobfit"
-budget = 10000
+seed_pool = range(0, 100)
+optimizer = "bobyqa"
+budget = 100000
+bounds = np.array([[-1.8, -0.6], [0.8, 1.4]], dtype=float)
 
 
 def minimize_nlopt(f, X0, rhobeg=None, p=None):
@@ -86,9 +87,7 @@ def get_trace(N, K, X0, precomputed_energies, factor=1, n_shot=None):
             trace_sv.append(energy_mean)
             return energy_mean
         else:
-            energy_var = (
-                sv.get_norm_squared().dot(precomputed_energies**2) - energy_mean**2
-            )
+            energy_var = sv.get_norm_squared().dot(precomputed_energies**2) - energy_mean**2
             # if len(trace) > 50:
             #     energy_std = np.sqrt(energy_var.real)/np.sqrt(n_shot*10)
             # else:
@@ -100,13 +99,15 @@ def get_trace(N, K, X0, precomputed_energies, factor=1, n_shot=None):
             trace_sv.append(energy_mean)
             return en
 
-    res = minimize_skquant(
-        f,
-        X0,
-        bounds=np.array([[-1.4, -0.8], [0.9, 1.3]], dtype=float),
-        budget=budget // (100 if n_shot is None else n_shot),
-        method=optimizer,
-    )
+    # res = minimize_skquant(
+    #     f,
+    #     X0,
+    #     bounds=bounds,
+    #     budget=budget // (100 if n_shot is None else n_shot),
+    #     method=optimizer,
+    # )
+    res = minimize_nlopt(f, X0, p=p, rhobeg=0.01 / p)
+
     return trace, trace_sv, res
 
 
@@ -155,12 +156,11 @@ if not os.path.exists(out_dir):
 for n_shot in n_shot_pool:
     for N in qubit_pool:
         K = int(N / 2)
+        # K = 5
         q = 0.5
         for seed in seed_pool:
             po_path = f"{data_dir}/po_problem_rule_{N}_{K}_{q}_seed{seed}.pckl"
-            energy_path = (
-                f"{data_dir}/precomputed_energies_rule_{N}_{K}_{q}_seed{seed}.npy"
-            )
+            energy_path = f"{data_dir}/precomputed_energies_rule_{N}_{K}_{q}_seed{seed}.npy"
             if Path(po_path).exists() and Path(energy_path).exists():
                 precomputed_energies = np.load(energy_path)
                 po_problem = pickle.load(open(po_path, "rb"))
@@ -171,8 +171,7 @@ for n_shot in n_shot_pool:
                 means_in_spins = np.array(
                     [
                         po_problem_unscaled["means"][i]
-                        - po_problem_unscaled["q"]
-                        * np.sum(po_problem_unscaled["cov"][i, :])
+                        - po_problem_unscaled["q"] * np.sum(po_problem_unscaled["cov"][i, :])
                         for i in range(len(po_problem_unscaled["means"]))
                     ]
                 )
@@ -180,8 +179,7 @@ for n_shot in n_shot_pool:
                     np.sqrt(
                         np.mean(
                             (
-                                (po_problem_unscaled["q"] * po_problem_unscaled["cov"])
-                                ** 2
+                                (po_problem_unscaled["q"] * po_problem_unscaled["cov"]) ** 2
                             ).flatten()
                         )
                     )
@@ -218,7 +216,7 @@ for n_shot in n_shot_pool:
                 pickle.dump(po_problem, open(po_path, "wb"))
             ########################
             for p in depth_pool:
-                outpath = f"{out_dir}/{N}_{K}_{q}_{seed}_p{p}_{optimizer.lower()}_{budget}eval_{n_shot}shot.pickle"
+                outpath = f"{out_dir}/{N}_{seed}_p{p}_{optimizer.lower()}_{budget}eval_{n_shot}shot.pickle"
                 # if not Path(outpath).exists():
                 if True:
                     np.random.seed(seed)
@@ -266,11 +264,12 @@ for n_shot in n_shot_pool:
                         "trace_sv": trace_rescaled_sv,
                         "res_rescaled": res_rescaled,
                         # 'res_orig':res_orig,
-                        # 'trace_orig':trace_orig,
+                        # 'trace_orig':tdrace_orig,
                         "rescale_time": rescale_time,
                         # 'orig_time':orig_time,
                         "rescale_ar": rescale_AR,
-                        # 'orig_ar':orig_AR
+                        # 'orig_ar':orig_AR,
+                        "opt_params": res_rescaled[0],
                     }
                     print(
                         f"Completed {N=} {seed=} {p=} res_AR={rescale_AR:.4f} {n_shot=}, func_call={len(trace_rescaled)}, norm_diffx={np.linalg.norm(res_rescaled[0]-X0)/np.linalg.norm(X0):.2f}, time={rescale_time:.2f}\n"
