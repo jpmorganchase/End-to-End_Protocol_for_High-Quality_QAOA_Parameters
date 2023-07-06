@@ -129,7 +129,7 @@ if __name__ == "__main__":
                 )
             )
             landscape.run_all(executor)
-            landscape.interpolate(fill_value=1)
+            landscape.interpolate(fill_value=np.max(landscape.true_landscape))
             if return_std:
                 filename += "-std"
             landscape.save(filename + ".pckl")
