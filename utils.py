@@ -6,8 +6,176 @@ from scipy.linalg import expm
 from itertools import product
 from multiprocessing import Pool
 from tqdm import tqdm
+import pandas as pd
+import yfinance as yf
 from functools import partial
+from typing import Union
 
+def create_portfolio_instance(start_date:str='2015-01-01', end_date:str='2019-12-31', num_assets:int=0,  return_dtype:str="numpy", log_returns:bool=False, tickers:list=[], sort_by_avg_volume=False )->[Union[np.ndarray,  pd.core.frame.DataFrame], Union[np.ndarray,  pd.core.frame.DataFrame] ]:
+
+    """
+       Parameters
+       ------------------           
+           start_date (str): The starting date
+           end_date (str): The ending date
+           num_assets (int): The number of assets
+           
+           
+           Optional:
+           return_dtype (str): The return datatype for the correlation matrix
+                        This is either numpy or panda
+           
+           tickers (list): The list of ticker symbols. If this is not provided, you will get 
+           the targets and correlation for the random tickers and you can read the
+           symbols via accessing the correlation as a pandas dataframe
+           
+           log_returns: If we want the log returns instead of just returns
+           
+       -------------------
+       Returns
+       ---------
+       List(returns, correlation) : type List(np.array, np.array or pd.dataframe)
+       
+    """
+
+    
+    if return_dtype=="numpy" or return_dtype=="np" or return_dtype=="pd" or return_dtype=="pandas":
+        pass
+    else:
+        #print(return_dtype)
+        raise Exception("The return dtype should be either (numpy) or (np) or pandas or (pd)")
+        
+    if tickers:
+        num_assets=len(tickers)
+    
+
+        
+    if not tickers:
+        '''
+        If the user doesn't provide the ticker symbols, we sort by average trading volume and just 
+        give the data for the number of assets provided
+        '''
+        
+        ### Download data for the time period
+        sp500_tickers = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
+
+        
+        ticker_symbols = sp500_tickers['Symbol'].tolist()
+        
+        
+        if not tickers and num_assets>0 and not sort_by_avg_volume:
+            rng=np.random.default_rng(1234)
+
+            random_tickers= rng.choice(len(ticker_symbols), size=num_assets, replace=False)
+            
+            top_N_ticker_symbols=np.array(ticker_symbols)[random_tickers].tolist()
+            
+        
+        else:
+            top_N_ticker_symbols=ticker_symbols
+
+
+        
+        # Retrieve historical price data for each ticker symbol
+        stock_data = {}
+
+        invalid_ticker_symbols = []
+
+        for symbol in top_N_ticker_symbols:
+            ticker = yf.Ticker(symbol)
+            data = ticker.history(start=start_date, end=end_date)
+            
+            if data.empty:
+                ### Removing the ticker symbols that are invalid
+                invalid_ticker_symbols.append(symbol)
+            else:
+                stock_data[symbol] = data
+
+
+        if sort_by_avg_volume or num_assets==0:
+            # Calculate average trading volume for each stock
+            average_volumes = {}
+            for symbol, data in stock_data.items():
+                average_volume = data['Volume'].mean()
+                average_volumes[symbol] = average_volume
+
+            # Sort the stocks based on average trading volume
+            sorted_stocks = sorted(average_volumes.items(), key=lambda x: x[1], reverse=True)
+
+            # Extract the ticker symbols from the sorted list
+            ticker_list = [tick[0] for tick in sorted_stocks]
+
+            if num_assets>0:
+                top_N_ticker_symbols=ticker_list[:num_assets]
+
+    ### This is if we are given a set of tickers
+    ### Then just download data for these, and compute correlation matrices and return vector
+    
+    else:
+        
+        # Retrieve historical price data for each ticker symbol
+        stock_data = {}
+
+        invalid_ticker_symbols = []
+
+        for symbol in tickers:
+            ticker = yf.Ticker(symbol)
+            data = ticker.history(start=start_date, end=end_date)
+
+            if data.empty:
+                invalid_ticker_symbols.append(symbol)
+            else:
+                stock_data[symbol] = data
+            
+        top_N_ticker_symbols=tickers
+
+        
+
+    top_N_ticker_symbols=list(stock_data.keys())
+    
+    
+    ### List of dataframes with the closing prices
+    list_df_close=[stock_data[symbol]["Close"] for symbol in top_N_ticker_symbols]
+    
+    df_close=pd.concat(list_df_close, axis=1, keys=top_N_ticker_symbols)
+    
+    ### Drop the ones with rows with NaN values
+    df_close=df_close.dropna(axis=1)
+    df_close=df_close.dropna(axis=0)
+
+
+    if not log_returns:
+        df_returns = df_close.pct_change()   #.dropna( )      
+        
+        #### Drop the first row since we have NaN's
+        df_returns=df_returns.iloc[1:];
+        
+        #print(df_returns.shape)
+        df_mean_returns=df_returns.mean(axis=0)
+
+        correlation_matrix = df_returns.corr()
+        
+        
+        if return_dtype in ("pandas", "pd"):
+            return [df_mean_returns, correlation_matrix]
+        else:
+            return [df_mean_returns.to_numpy(), correlation_matrix.to_numpy()]
+
+
+    elif log_returns:
+        
+        df_logreturns=np.log(df_close/df_close.shift(1)).dropna()
+        df_meanlog_returns=df_logreturns.mean(axis=0)
+        
+        correlation_matrix=df_logreturns.corr()
+        
+
+        if return_dtype in ("pandas", "pd"):
+            return [df_meanlog_returns, correlation_matrix]
+
+        else:
+            return [df_meanlog_returns.to_numpy(), correlation_matrix.to_numpy()]
+            
 def get_data(N, seed=1, real=False):
     """
     load portofolio data from qiskit-finance (Yahoo)
