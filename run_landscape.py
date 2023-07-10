@@ -22,6 +22,7 @@ from utils import (
     generate_dicke_state_fast,
     get_adjusted_state,
     precompute_energies_parallel,
+    get_problem,
 )
 
 q = 0.5
@@ -37,7 +38,7 @@ def kbits(n, k):
         yield np.array(s)
 
 
-def get_problem(n, seed):
+def load_problem(n, seed):
     k = n // 2
     po_path = f"{data_dir}/po_problem_rule_{n}_{k}_{q}_seed{seed}.pckl"
     energy_path = f"{data_dir}/precomputed_energies_rule_{n}_{k}_{q}_seed{seed}.npy"
@@ -91,7 +92,7 @@ def get_problem(n, seed):
 
 
 def evaluate_energy(theta, p, n, problem_seed, shots=None, return_std=False, sample_seed=42):
-    po_problem, precomputed_energies = get_problem(n, problem_seed)
+    po_problem, precomputed_energies = load_problem(n, problem_seed)
     gamma, beta = theta[:p], theta[p:]
     sim = QAOAFURXYRingSimulatorC(n, po_problem["scale"] * precomputed_energies)
     sv = sim.simulate_qaoa(gamma, beta, sv0=generate_dicke_state_fast(n, n // 2))
