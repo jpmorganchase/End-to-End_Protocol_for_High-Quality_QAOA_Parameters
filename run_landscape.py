@@ -21,13 +21,15 @@ from optimizer import circuit_measurement_function
 from utils import (
     generate_dicke_state_fast,
     get_adjusted_state,
+    get_real_problem,
     precompute_energies_parallel,
-    get_problem,
 )
 
 q = 0.5
+sample_seed = 42
 data_dir = "data/random"
 os.makedirs(data_dir, exist_ok=True)
+rng = np.random.default_rng(sample_seed)
 
 
 def kbits(n, k):
@@ -46,7 +48,7 @@ def load_problem(n, seed):
         precomputed_energies = np.load(energy_path)
         po_problem = pickle.load(open(po_path, "rb"))
     else:
-        po_problem_unscaled = get_problem(n, k, q, seed, pre=1)
+        po_problem_unscaled = get_real_problem(n, k, q, seed, pre=1)
         means_in_spins = np.array(
             [
                 po_problem_unscaled["means"][i]
@@ -60,8 +62,9 @@ def load_problem(n, seed):
             )
             + np.sqrt(np.mean((means_in_spins**2).flatten()))
         )
-        print(f"scale = {scale}")
-        po_problem = get_problem(N=n, K=k, q=q, seed=seed, pre=scale)
+        po_problem["scale"] = scale
+        po_problem["means"] = scale * po_problem["means"]
+        po_problem["cov"] = scale * po_problem["cov"]
 
         min_constrained = float("inf")
         max_constrained = float("-inf")
@@ -91,7 +94,7 @@ def load_problem(n, seed):
     return po_problem, precomputed_energies
 
 
-def evaluate_energy(theta, p, n, problem_seed, shots=None, return_std=False, sample_seed=42):
+def evaluate_energy(theta, p, n, problem_seed, shots=None, return_std=False):
     po_problem, precomputed_energies = load_problem(n, problem_seed)
     gamma, beta = theta[:p], theta[p:]
     sim = QAOAFURXYRingSimulatorC(n, po_problem["scale"] * precomputed_energies)
@@ -108,13 +111,13 @@ def evaluate_energy(theta, p, n, problem_seed, shots=None, return_std=False, sam
     energy_std = energy_std / np.sqrt(shots)
     if return_std:
         return energy_std
-    return np.random.default_rng(sample_seed).normal(energy_mean, energy_std)
+    return rng.normal(energy_mean, energy_std)
 
 
 if __name__ == "__main__":
     depth_pool = [1]
-    qubit_pool = [18]
-    seed_pool = range(3, 10)
+    qubit_pool = [10]
+    seed_pool = range(1)
     resolutions = [128, 32]
     bounds = [(-2.2, -0.6), (0.9, 1.3)]
     # resolutions = [64, 64]
