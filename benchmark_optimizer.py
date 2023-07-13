@@ -9,6 +9,9 @@ from oscar import (
     NLoptOptimizer,
     QiskitOptimizer,
     plot_2d_landscape,
+    HyperparameterTuner,
+    HyperparameterGrid,
+    HyperparameterSet
 )
 
 sample_seed = 42
@@ -39,18 +42,35 @@ maxfev_pool = list(range(4, 101))
 initial_point = [-1.24727193, 1.04931211]
 # initial_point = [-2.2, 0.9]
 reps = 2
-method_pool = ["RECOBYLA"]
 # budget = 10000
 rhobeg_pool = np.linspace(0.1, 0.3, 2).tolist()
 # rhobeg_pool = [0.2]
 xtol_pool = np.linspace(0, 0.1, 2).tolist()
 # xtol_pool = [0.045]
 scaling = 2
+method_pool = {
+    "RECOBYLA": (shots_pool, rhobeg_pool, xtol_pool),
+    "COBYLA": (shots_pool, rhobeg_pool),
+}
+
+configs = {
+    'RECOBYLA': HyperparameterGrid(
+        'RECOBYLA',
+        maxfev=[1000],
+        shots=[None],
+        rhobeg=[0.5],
+        xtol=[1e-4],
+        )
+}
+
 
 configs = []
-for method, shots, rhobeg, xtol in itertools.product(
-    method_pool, shots_pool, rhobeg_pool, xtol_pool
+for method in method_pool:
+for shots, rhobeg, xtol in itertools.product(
+    *method #TODO: adaptively loop over applicable hyperparameters
 ):
+    if method == "COYBLA" and xtol != xtol_pool[0]:
+        continue
     configs.append((method, shots, rhobeg, xtol))
 mean_ar = np.zeros(len(configs) * len(maxfev_pool), dtype=float)
 solved_ratio = np.zeros(len(configs) * len(maxfev_pool), dtype=float)
