@@ -130,3 +130,6 @@ dmypy.json
 
 # IDEs
 .vscode/
+
+# large data files
+.data/random
