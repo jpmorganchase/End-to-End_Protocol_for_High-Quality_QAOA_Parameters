@@ -1,7 +1,7 @@
 import os
 
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["NUMBA_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "32"
+os.environ["NUMBA_NUM_THREADS"] = "32"
 
 import itertools
 import os
@@ -16,7 +16,7 @@ from oscar import BPDNReconstructor, CustomExecutor, Landscape
 from tqdm import tqdm
 
 from circuit_utils import get_configuration_cost_kw
-from fur import QAOAFURXYRingSimulatorC
+from qokit.fur import QAOAFURXYRingSimulatorC
 from optimizer import circuit_measurement_function
 from utils import (
     generate_dicke_state_fast,
@@ -48,18 +48,15 @@ def load_problem(n, seed):
         precomputed_energies = np.load(energy_path)
         po_problem = pickle.load(open(po_path, "rb"))
     else:
-        po_problem_unscaled = get_real_problem(n, k, q, seed, pre=1)
+        po_problem = get_real_problem(n, k, q, seed, pre=1)
         means_in_spins = np.array(
             [
-                po_problem_unscaled["means"][i]
-                - po_problem_unscaled["q"] * np.sum(po_problem_unscaled["cov"][i, :])
-                for i in range(len(po_problem_unscaled["means"]))
+                po_problem["means"][i] - po_problem["q"] * np.sum(po_problem["cov"][i, :])
+                for i in range(len(po_problem["means"]))
             ]
         )
         scale = 1 / (
-            np.sqrt(
-                np.mean(((po_problem_unscaled["q"] * po_problem_unscaled["cov"]) ** 2).flatten())
-            )
+            np.sqrt(np.mean(((po_problem["q"] * po_problem["cov"]) ** 2).flatten()))
             + np.sqrt(np.mean((means_in_spins**2).flatten()))
         )
         po_problem["scale"] = scale
@@ -94,23 +91,25 @@ def load_problem(n, seed):
     return po_problem, precomputed_energies
 
 
-def evaluate_energy(theta, p, n, problem_seed, shots=None, return_std=False):
+def evaluate_energy(theta, p, n, problem_seed, shots=None, sv_list=None, std_list=None):
     po_problem, precomputed_energies = load_problem(n, problem_seed)
     gamma, beta = theta[:p], theta[p:]
     sim = QAOAFURXYRingSimulatorC(n, po_problem["scale"] * precomputed_energies)
     sv = sim.simulate_qaoa(gamma, beta, sv0=generate_dicke_state_fast(n, n // 2))
-    energy_mean = sv.get_norm_squared().dot(precomputed_energies).real
+    if sv_list is not None:
+        sv_list.append(sv.get_complex())
 
-    if shots is None and not return_std:
+    energy_mean = sv.get_norm_squared().dot(precomputed_energies).real
+    if shots is None and std_list is None:
         return energy_mean
+
     energy_std = np.sqrt(
         (sv.get_norm_squared().dot(precomputed_energies**2) - energy_mean**2).real
     )
-    if shots is None:
-        return energy_std
-    energy_std = energy_std / np.sqrt(shots)
-    if return_std:
-        return energy_std
+    if shots is not None:
+        energy_std = energy_std / np.sqrt(shots)
+    if std_list is not None:
+        std_list.append(energy_std)
     return rng.normal(energy_mean, energy_std)
 
 
@@ -124,16 +123,27 @@ if __name__ == "__main__":
     # bounds = [(-pi / 4, pi / 4), (-pi / 2, pi / 2)]
 
     for p, n, seed in itertools.product(depth_pool, qubit_pool, seed_pool):
+        sv_list, std_list = [], []
         filename = f"data/landscapes/{p=}/{n=}/{p=}-{n=}-{seed=}-{bounds}-{resolutions}"
-        for return_std in [False, True]:
-            landscape = Landscape(resolutions, bounds)
-            executor = CustomExecutor(
-                partial(
-                    evaluate_energy, p=p, n=n, problem_seed=seed, shots=None, return_std=return_std
-                )
+        landscape = Landscape(resolutions, bounds)
+        executor = CustomExecutor(
+            partial(
+                evaluate_energy,
+                p=p,
+                n=n,
+                problem_seed=seed,
+                shots=None,
+                sv_list=sv_list,
+                std_list=std_list,
             )
-            landscape.run_all(executor)
-            landscape.interpolate(fill_value=np.max(landscape.true_landscape))
-            if return_std:
-                filename += "-std"
-            landscape.save(filename + ".pckl")
+        )
+        landscape.run_all(executor)
+        landscape.interpolate(fill_value=np.max(landscape.true_landscape))
+        landscape.save(filename)
+        std_landscape = Landscape(resolutions, bounds)
+        std_landscape.true_landscape = np.array(std_list).reshape(landscape.param_resolutions)
+        std_landscape.save(filename + "-std")
+        np.save(
+            filename + "-sv",
+            np.array(sv_list).reshape(*landscape.param_resolutions, -1),
+        )
