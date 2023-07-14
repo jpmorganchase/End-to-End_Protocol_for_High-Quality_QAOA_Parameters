@@ -132,4 +132,4 @@ dmypy.json
 .vscode/
 
 # large data files
-data/random
+data/random/precomputed_energies_rule*
