@@ -21,6 +21,7 @@ from optimizer import circuit_measurement_function
 from utils import (
     generate_dicke_state_fast,
     get_adjusted_state,
+    get_problem,
     get_real_problem,
     precompute_energies_parallel,
 )
@@ -84,7 +85,7 @@ def load_problem(n, seed):
         po_problem["feasible_min_x"] = min_x
         po_problem["feasible_max_x"] = max_x
         po_problem["feasible_mean"] = mean_constrained
-        precomputed_energies = get_adjusted_state(precompute_energies_parallel(po_obj, n, 1))
+        precomputed_energies = get_adjusted_state(precompute_energies_parallel(po_obj, n, 1)).real
 
         np.save(energy_path, precomputed_energies, allow_pickle=False)
         pickle.dump(po_problem, open(po_path, "wb"))
@@ -110,17 +111,19 @@ def evaluate_energy(theta, p, n, problem_seed, shots=None, sv_list=None, std_lis
         energy_std = energy_std / np.sqrt(shots)
     if std_list is not None:
         std_list.append(energy_std)
+    if shots is None:
+        return energy_mean
     return rng.normal(energy_mean, energy_std)
 
 
 if __name__ == "__main__":
     depth_pool = [1]
-    qubit_pool = [10]
+    qubit_pool = [14]
     seed_pool = range(1)
+    # resolutions = [128, 32]
+    # bounds = [(-2.2, -0.6), (0.9, 1.3)]
     resolutions = [128, 32]
-    bounds = [(-2.2, -0.6), (0.9, 1.3)]
-    # resolutions = [64, 64]
-    # bounds = [(-pi / 4, pi / 4), (-pi / 2, pi / 2)]
+    bounds = [(-4, 0), (0, 1)]
 
     for p, n, seed in itertools.product(depth_pool, qubit_pool, seed_pool):
         sv_list, std_list = [], []
@@ -137,13 +140,19 @@ if __name__ == "__main__":
                 std_list=std_list,
             )
         )
-        landscape.run_all(executor)
-        landscape.interpolate(fill_value=np.max(landscape.true_landscape))
-        landscape.save(filename)
-        std_landscape = Landscape(resolutions, bounds)
-        std_landscape.true_landscape = np.array(std_list).reshape(landscape.param_resolutions)
-        std_landscape.save(filename + "-std")
-        np.save(
-            filename + "-sv",
-            np.array(sv_list).reshape(*landscape.param_resolutions, -1),
-        )
+        landscape.sample_and_run(executor, 1/16)
+        landscape.reconstruct(BPDNReconstructor())
+        # landscape.run_all(executor)
+        landscape.interpolate(fill_value=np.max(landscape.reconstructed_landscape))
+        landscape.save(filename + ".pckl")
+        # std_landscape = Landscape(resolutions, bounds)
+        # std_landscape.sampled_landscape = np.array(std_list)#.reshape(landscape.param_resolutions)
+        # std_landscape._sampled_indices = landscape._sample_indices
+        # std_landscape.reconstruct(BPDNReconstructor())
+        # # std_landscape.true_landscape = np.array(std_list).reshape(landscape.param_resolutions)
+        # std_landscape.interpolate(fill_value=np.max(std_landscape.reconstructed_landscape))
+        # std_landscape.save(filename + "-std.pckl")
+        # np.save(
+        #     filename + "-sv.npy",
+        #     np.array(sv_list).reshape(*landscape.param_resolutions, -1),
+        # )
