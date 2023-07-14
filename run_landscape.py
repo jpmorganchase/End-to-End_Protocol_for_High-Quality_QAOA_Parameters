@@ -122,7 +122,7 @@ def evaluate_energy(theta, p, n, problem_seed, shots=None, sv_list=None, std_lis
 
 if __name__ == "__main__":
     depth_pool = [1]
-    qubit_pool = range(10, 20, 2)
+    qubit_pool = [20]
     seed_pool = range(20, 30)
     # resolutions = [128, 32]
     # bounds = [(-2.2, -0.6), (0.9, 1.3)]
