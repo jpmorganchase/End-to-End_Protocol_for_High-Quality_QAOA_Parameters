@@ -45,8 +45,7 @@ def load_problem(n, seed):
     k = n // 2
     po_path = f"{data_dir}/po_problem_rule_{n}_{k}_{q}_seed{seed}.pckl"
     energy_path = f"{data_dir}/precomputed_energies_rule_{n}_{k}_{q}_seed{seed}.npy"
-    if Path(po_path).exists() and Path(energy_path).exists():
-        precomputed_energies = np.load(energy_path)
+    if Path(po_path).exists():
         po_problem = pickle.load(open(po_path, "rb"))
     else:
         po_problem = get_real_problem(n, k, q, seed, pre=1)
@@ -85,10 +84,15 @@ def load_problem(n, seed):
         po_problem["feasible_min_x"] = min_x
         po_problem["feasible_max_x"] = max_x
         po_problem["feasible_mean"] = mean_constrained
-        precomputed_energies = get_adjusted_state(precompute_energies_parallel(po_obj, n, 1)).real
-
-        np.save(energy_path, precomputed_energies, allow_pickle=False)
         pickle.dump(po_problem, open(po_path, "wb"))
+
+    if Path(energy_path).exists():
+        precomputed_energies = np.load(energy_path)
+    else:
+        po_obj = partial(get_configuration_cost_kw, po_problem=po_problem)
+        precomputed_energies = get_adjusted_state(precompute_energies_parallel(po_obj, n, 1)).real
+        np.save(energy_path, precomputed_energies, allow_pickle=False)
+        
     return po_problem, precomputed_energies
 
 
