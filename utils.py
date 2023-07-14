@@ -232,7 +232,7 @@ def get_data(N, seed=1, real=False):
         month = date % 12 + 1
         start_date = f"{year}-{month}-01"
         end_date = f"{year}-{month}-28"
-        means, cov = create_portfolio_instance(
+        return create_portfolio_instance(
             start_date,
             end_date,
             0,
@@ -242,10 +242,6 @@ def get_data(N, seed=1, real=False):
                 stock_symbols[i] for i in rng.choice(len(stock_symbols), size=N, replace=False)
             ],
         )
-        # means = means[random_tickers]
-        # cov = cov[random_tickers, random_tickers]
-        print(means.shape, cov.shape)
-        return means, cov
 
         # data = YahooDataProvider(
         #     tickers=stock_symbols[:N],
