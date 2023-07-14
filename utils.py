@@ -190,6 +190,41 @@ def get_data(N, seed=1, real=False):
             seed=seed,
         )
     else:
+        stock_symbols = [
+            "AAPL",
+            "GOOGL",
+            "AMZN",
+            "MSFT",
+            "TSLA",
+            "NFLX",
+            "NVDA",
+            "JPM",
+            "V",
+            "JNJ",
+            "WMT",
+            "PG",
+            "MA",
+            "UNH",
+            "HD",
+            "DIS",
+            "BRK-B",
+            "VZ",
+            "KO",
+            "MRK",
+            "INTC",
+            "CMCSA",
+            "PEP",
+            "PFE",
+            "CSCO",
+            "XOM",
+            "BA",
+            "MCD",
+            "ABBV",
+            "IBM",
+            "GE",
+            "MMM",
+        ]
+
         # switch to Atithi's implementation
         rng = np.random.default_rng(seed)
         date = rng.integers(0, 60)
@@ -197,42 +232,20 @@ def get_data(N, seed=1, real=False):
         month = date % 12 + 1
         start_date = f"{year}-{month}-01"
         end_date = f"{year}-{month}-28"
-        return create_portfolio_instance(start_date, end_date, N, log_returns=True, seed=seed)
-
-        # stock_symbols = [
-        #     "AAPL",
-        #     "GOOGL",
-        #     "AMZN",
-        #     "MSFT",
-        #     "TSLA",
-        #     "NFLX",
-        #     "NVDA",
-        #     "JPM",
-        #     "V",
-        #     "JNJ",
-        #     "WMT",
-        #     "PG",
-        #     "MA",
-        #     "UNH",
-        #     "HD",
-        #     "DIS",
-        #     "BRK-B",
-        #     "VZ",
-        #     "KO",
-        #     "MRK",
-        #     "INTC",
-        #     "CMCSA",
-        #     "PEP",
-        #     "PFE",
-        #     "CSCO",
-        #     "XOM",
-        #     "BA",
-        #     "MCD",
-        #     "ABBV",
-        #     "IBM",
-        #     "GE",
-        #     "MMM",
-        # ]
+        means, cov = create_portfolio_instance(
+            start_date,
+            end_date,
+            0,
+            log_returns=True,
+            seed=seed,
+            tickers=[
+                stock_symbols[i] for i in rng.choice(len(stock_symbols), size=N, replace=False)
+            ],
+        )
+        # means = means[random_tickers]
+        # cov = cov[random_tickers, random_tickers]
+        print(means.shape, cov.shape)
+        return means, cov
 
         # data = YahooDataProvider(
         #     tickers=stock_symbols[:N],
