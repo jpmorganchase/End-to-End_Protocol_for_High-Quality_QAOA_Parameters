@@ -1,5 +1,3 @@
-import os
-
 # os.environ["OMP_NUM_THREADS"] = "32"
 # os.environ["NUMBA_NUM_THREADS"] = "32"
 
@@ -11,12 +9,14 @@ from functools import partial
 from math import pi
 from pathlib import Path
 
+import numba
 import numpy as np
 from oscar import BPDNReconstructor, CustomExecutor, Landscape
+from qokit.fur import QAOAFURXSimulatorGPU, QAOAFURXYRingSimulatorC
+from qokit.fur.c.utils import ComplexArray
 from tqdm import tqdm
 
 from circuit_utils import get_configuration_cost_kw
-from qokit.fur import QAOAFURXYRingSimulatorC
 from optimizer import circuit_measurement_function
 from utils import (
     generate_dicke_state_fast,
@@ -25,6 +25,7 @@ from utils import (
     get_real_problem,
     precompute_energies_parallel,
 )
+
 
 q = 0.5
 sample_seed = 42
@@ -92,15 +93,21 @@ def load_problem(n, seed):
         po_obj = partial(get_configuration_cost_kw, po_problem=po_problem)
         precomputed_energies = get_adjusted_state(precompute_energies_parallel(po_obj, n, 1)).real
         np.save(energy_path, precomputed_energies, allow_pickle=False)
-        
+
     return po_problem, precomputed_energies
 
 
 def evaluate_energy(theta, p, n, problem_seed, shots=None, sv_list=None, std_list=None):
     po_problem, precomputed_energies = load_problem(n, problem_seed)
     gamma, beta = theta[:p], theta[p:]
-    sim = QAOAFURXYRingSimulatorC(n, po_problem["scale"] * precomputed_energies)
+    if numba.cuda.is_available():
+        simulator = QAOAFURXYRingSimulatorGPU
+    else:
+        simulator = QAOAFURXYRingSimulatorC
+    sim = simulator(n, po_problem["scale"] * precomputed_energies)
     sv = sim.simulate_qaoa(gamma, beta, sv0=generate_dicke_state_fast(n, n // 2))
+    if isinstance(sv, np.ndarray):
+        sv = ComplexArray(sv.real, sv.imag)
     if sv_list is not None:
         sv_list.append(sv.get_complex())
 
@@ -145,7 +152,7 @@ if __name__ == "__main__":
                     std_list=std_list,
                 )
             )
-            landscape.sample_and_run(executor, 1/16)
+            landscape.sample_and_run(executor, 1 / 16)
             landscape.reconstruct(BPDNReconstructor())
             # landscape.run_all(executor)
             landscape.interpolate(fill_value=np.max(landscape.reconstructed_landscape))
