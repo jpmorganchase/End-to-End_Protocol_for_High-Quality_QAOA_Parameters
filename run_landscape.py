@@ -1,7 +1,7 @@
 import os
 
-os.environ["OMP_NUM_THREADS"] = "32"
-os.environ["NUMBA_NUM_THREADS"] = "32"
+# os.environ["OMP_NUM_THREADS"] = "32"
+# os.environ["NUMBA_NUM_THREADS"] = "32"
 
 import itertools
 import os
@@ -118,41 +118,44 @@ def evaluate_energy(theta, p, n, problem_seed, shots=None, sv_list=None, std_lis
 
 if __name__ == "__main__":
     depth_pool = [1]
-    qubit_pool = [14]
-    seed_pool = range(1)
+    qubit_pool = range(10, 20, 2)
+    seed_pool = range(20, 30)
     # resolutions = [128, 32]
     # bounds = [(-2.2, -0.6), (0.9, 1.3)]
     resolutions = [128, 32]
     bounds = [(-4, 0), (0, 1)]
 
     for p, n, seed in itertools.product(depth_pool, qubit_pool, seed_pool):
-        sv_list, std_list = [], []
+        sv_list, std_list = None, None
         filename = f"data/landscapes/{p=}/{n=}/{p=}-{n=}-{seed=}-{bounds}-{resolutions}"
         landscape = Landscape(resolutions, bounds)
-        executor = CustomExecutor(
-            partial(
-                evaluate_energy,
-                p=p,
-                n=n,
-                problem_seed=seed,
-                shots=None,
-                sv_list=sv_list,
-                std_list=std_list,
+        try:
+            executor = CustomExecutor(
+                partial(
+                    evaluate_energy,
+                    p=p,
+                    n=n,
+                    problem_seed=seed,
+                    shots=None,
+                    sv_list=sv_list,
+                    std_list=std_list,
+                )
             )
-        )
-        landscape.sample_and_run(executor, 1/16)
-        landscape.reconstruct(BPDNReconstructor())
-        # landscape.run_all(executor)
-        landscape.interpolate(fill_value=np.max(landscape.reconstructed_landscape))
-        landscape.save(filename + ".pckl")
-        # std_landscape = Landscape(resolutions, bounds)
-        # std_landscape.sampled_landscape = np.array(std_list)#.reshape(landscape.param_resolutions)
-        # std_landscape._sampled_indices = landscape._sample_indices
-        # std_landscape.reconstruct(BPDNReconstructor())
-        # # std_landscape.true_landscape = np.array(std_list).reshape(landscape.param_resolutions)
-        # std_landscape.interpolate(fill_value=np.max(std_landscape.reconstructed_landscape))
-        # std_landscape.save(filename + "-std.pckl")
-        # np.save(
-        #     filename + "-sv.npy",
-        #     np.array(sv_list).reshape(*landscape.param_resolutions, -1),
-        # )
+            landscape.sample_and_run(executor, 1/16)
+            landscape.reconstruct(BPDNReconstructor())
+            # landscape.run_all(executor)
+            landscape.interpolate(fill_value=np.max(landscape.reconstructed_landscape))
+            landscape.save(filename + ".pckl")
+            # std_landscape = Landscape(resolutions, bounds)
+            # std_landscape.sampled_landscape = np.array(std_list)#.reshape(landscape.param_resolutions)
+            # std_landscape._sampled_indices = landscape._sample_indices
+            # std_landscape.reconstruct(BPDNReconstructor())
+            # # std_landscape.true_landscape = np.array(std_list).reshape(landscape.param_resolutions)
+            # std_landscape.interpolate(fill_value=np.max(std_landscape.reconstructed_landscape))
+            # std_landscape.save(filename + "-std.pckl")
+            # np.save(
+            #     filename + "-sv.npy",
+            #     np.array(sv_list).reshape(*landscape.param_resolutions, -1),
+            # )
+        except Exception as e:
+            print(e)
