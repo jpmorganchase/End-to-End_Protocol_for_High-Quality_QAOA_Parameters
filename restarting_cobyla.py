@@ -23,13 +23,16 @@ def RECOBYLA() -> CustomOptimizer:
     ) -> dict[str, Any]:
         def f_wrapper(x, grad, shots):
             if grad.size > 0:
-                raise ValueError
+                raise ValueError("Gradient shouldn't be requested")
             return f(x, shots=shots)
 
-        bounds = np.array(bounds)
-        used_budget, iter, num_evals = 0, 0, 0
+        if budget < (2 * p + 2) * shots:
+            raise ValueError(f"Not enough budget for a minimal requirement of 2 * (p + 1) * shots for {p = } and {shots = }.")
 
-        while used_budget < budget - (2 * p + 2) * shots:
+        bounds = np.array(bounds)
+        used_budget, iteration, num_evals = 0, 0, 0
+
+        while used_budget + (2 * p + 2) * shots <= budget:
             optimizer = opt(LN_COBYLA, 2 * p)
             optimizer.set_min_objective(partial(f_wrapper, shots=shots))
             optimizer.set_lower_bounds(bounds.T[0])
@@ -49,12 +52,12 @@ def RECOBYLA() -> CustomOptimizer:
                 rhobeg /= scaling
                 xtol_abs /= scaling
                 shots *= scaling
-                iter += 1
+                iteration += 1
 
         return {
             "optimal_params": initial_point,
             "optimal_value": optimizer.last_optimum_value(),
-            "num_iters": iter,
+            "num_iters": iteration,
             "num_fun_evals": num_evals,
             "used_budget": used_budget,
         }
