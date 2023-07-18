@@ -12,7 +12,7 @@ from pathlib import Path
 import numba
 import numpy as np
 from oscar import BPDNReconstructor, CustomExecutor, Landscape
-from qokit.fur import QAOAFURXSimulatorGPU, QAOAFURXYRingSimulatorC
+from qokit.fur import QAOAFURXYRingSimulatorGPU, QAOAFURXYRingSimulatorC
 from qokit.fur.c.utils import ComplexArray
 from tqdm import tqdm
 
