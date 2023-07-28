@@ -42,7 +42,7 @@ def kbits(n, k):
         yield np.array(s)
 
 
-def load_problem(n, seed):
+def load_po_problem(n, seed):
     k = n // 2
     po_path = f"{data_dir}/po_problem_rule_{n}_{k}_{q}_seed{seed}.pckl"
     energy_path = f"{data_dir}/precomputed_energies_rule_{n}_{k}_{q}_seed{seed}.npy"
@@ -52,7 +52,8 @@ def load_problem(n, seed):
         po_problem = get_real_problem(n, k, q, seed, pre=1)
         means_in_spins = np.array(
             [
-                po_problem["means"][i] - po_problem["q"] * np.sum(po_problem["cov"][i, :])
+                po_problem["means"][i]
+                - po_problem["q"] * np.sum(po_problem["cov"][i, :])
                 for i in range(len(po_problem["means"]))
             ]
         )
@@ -91,33 +92,31 @@ def load_problem(n, seed):
         precomputed_energies = np.load(energy_path)
     else:
         po_obj = partial(get_configuration_cost_kw, po_problem=po_problem)
-        precomputed_energies = get_adjusted_state(precompute_energies_parallel(po_obj, n, 1)).real
+        precomputed_energies = get_adjusted_state(
+            precompute_energies_parallel(po_obj, n, 1)
+        ).real
         np.save(energy_path, precomputed_energies, allow_pickle=False)
 
     return po_problem, precomputed_energies
 
 
 def evaluate_energy(theta, p, n, problem_seed, shots=None, sv_list=None, std_list=None):
-    po_problem, precomputed_energies = load_problem(n, problem_seed)
+    po_problem, precomputed_energies = load_po_problem(n, problem_seed)
     gamma, beta = theta[:p], theta[p:]
     if numba.cuda.is_available():
         simulator = QAOAFURXYRingSimulatorGPU
     else:
         simulator = QAOAFURXYRingSimulatorC
     sim = simulator(n, po_problem["scale"] * precomputed_energies)
-    sv = sim.simulate_qaoa(gamma, beta, sv0=generate_dicke_state_fast(n, n // 2))
-    if isinstance(sv, np.ndarray):
-        sv = ComplexArray(sv.real, sv.imag)
-    if sv_list is not None:
-        sv_list.append(sv.get_complex())
+    result = sim.simulate_qaoa(gamma, beta, sv0=generate_dicke_state_fast(n, n // 2))
+    probs = sim.get_probabilities(result)
+    # overlap = sim.get_overlap(result)
 
-    energy_mean = sv.get_norm_squared().dot(precomputed_energies).real
+    energy_mean = probs.dot(precomputed_energies).real
     if shots is None and std_list is None:
         return energy_mean
 
-    energy_std = np.sqrt(
-        (sv.get_norm_squared().dot(precomputed_energies**2) - energy_mean**2).real
-    )
+    energy_std = np.sqrt((probs.dot(precomputed_energies**2) - energy_mean**2).real)
     if shots is not None:
         energy_std = energy_std / np.sqrt(shots)
     if std_list is not None:
