@@ -11,8 +11,10 @@ from qokit.maxcut import maxcut_obj, get_adjacency_matrix
 from qokit.qaoa_objective_maxcut import get_qaoa_maxcut_objective
 from qokit.qaoa_objective_portfolio import get_qaoa_portfolio_objective
 from qokit.utils import brute_force, precompute_energies
+from tqdm import tqdm
 
-from run_landscape import load_po_problem
+from circuit_utils import get_configuration_cost_kw
+from utils import get_problem, get_real_problem
 
 
 def load_problem(
@@ -55,6 +57,48 @@ def load_maxcut_problem(n: int, seed: int) -> tuple[nx.Graph, NDArray[np.float_]
         g.edges[w, v]["weight"] = weights[i]
 
     return g, precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n)
+
+def load_po_problem(n, seed):
+    k = n // 2
+    po_problem = get_real_problem(n, k, q, seed, pre=1)
+    means_in_spins = np.array(
+        [
+            po_problem["means"][i]
+            - po_problem["q"] * np.sum(po_problem["cov"][i, :])
+            for i in range(len(po_problem["means"]))
+        ]
+    )
+    scale = 1 / (
+        np.sqrt(np.mean(((po_problem["q"] * po_problem["cov"]) ** 2).flatten()))
+        + np.sqrt(np.mean((means_in_spins**2).flatten()))
+    )
+    po_problem["scale"] = scale
+    po_problem["means"] = scale * po_problem["means"]
+    po_problem["cov"] = scale * po_problem["cov"]
+
+    min_constrained = float("inf")
+    max_constrained = float("-inf")
+    mean_constrained = 0
+    total_constrained = 0
+    po_obj = partial(get_configuration_cost_kw, po_problem=po_problem)
+    for x in tqdm(kbits(n, k)):
+        curr = po_obj(x)
+        if curr < min_constrained:
+            min_constrained = curr
+            min_x = x
+        if curr > max_constrained:
+            max_constrained = curr
+            max_x = x
+        mean_constrained += curr
+        total_constrained += 1.0
+    mean_constrained /= total_constrained
+    po_problem["feasible_min"] = min_constrained
+    po_problem["feasible_max"] = max_constrained
+    po_problem["feasible_min_x"] = min_x
+    po_problem["feasible_max_x"] = max_x
+    po_problem["feasible_mean"] = mean_constrained
+
+    return po_problem, precomputed_energies
 
 
 def get_evaluate_energy(
