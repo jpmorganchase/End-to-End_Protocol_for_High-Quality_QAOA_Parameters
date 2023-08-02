@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any, Literal
 from functools import partial
+import itertools
 
 import networkx as nx
 import numpy as np
@@ -14,7 +15,7 @@ from qokit.utils import brute_force, precompute_energies
 from tqdm import tqdm
 
 from circuit_utils import get_configuration_cost_kw
-from utils import get_problem, get_real_problem
+from utils import get_problem, get_real_problem, get_adjusted_state, precompute_energies_parallel
 
 
 def load_problem(
@@ -25,6 +26,14 @@ def load_problem(
     if problem == "po":
         return load_po_problem(n, seed)
     raise ValueError(f"Problem {problem} not recognized")
+
+
+def kbits(n, k):
+    for bits in itertools.combinations(range(n), k):
+        s = [0] * n
+        for bit in bits:
+            s[bit] = 1
+        yield np.array(s)
 
 
 def sample_gaussian_mixture(
@@ -58,13 +67,13 @@ def load_maxcut_problem(n: int, seed: int) -> tuple[nx.Graph, NDArray[np.float_]
 
     return g, precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n)
 
+
 def load_po_problem(n, seed):
     k = n // 2
-    po_problem = get_real_problem(n, k, q, seed, pre=1)
+    po_problem = get_real_problem(n, k, 0.5, seed, pre=1)
     means_in_spins = np.array(
         [
-            po_problem["means"][i]
-            - po_problem["q"] * np.sum(po_problem["cov"][i, :])
+            po_problem["means"][i] - po_problem["q"] * np.sum(po_problem["cov"][i, :])
             for i in range(len(po_problem["means"]))
         ]
     )
@@ -97,6 +106,9 @@ def load_po_problem(n, seed):
     po_problem["feasible_min_x"] = min_x
     po_problem["feasible_max_x"] = max_x
     po_problem["feasible_mean"] = mean_constrained
+    precomputed_energies = get_adjusted_state(
+        precompute_energies_parallel(po_obj, n, 1)
+    ).real
 
     return po_problem, precomputed_energies
 
@@ -109,7 +121,8 @@ def get_evaluate_energy(
     simulator: str = "auto",
 ) -> Callable:
     if isinstance(problem, nx.Graph):
-        return get_qaoa_maxcut_objective(
+        beta_scaling = 1 / 4
+        func = get_qaoa_maxcut_objective(
             problem.number_of_nodes(),
             p,
             problem,
@@ -117,10 +130,19 @@ def get_evaluate_energy(
             objective=objective,
             simulator=simulator,
         )
-    return get_qaoa_portfolio_objective(
-        problem,
-        p,
-        precomputed_energies=precomputed_energies,
-        objective=objective,
-        simulator=simulator,
-    )
+    else:
+        beta_scaling = 1 / 8
+        func = get_qaoa_portfolio_objective(
+            problem,
+            p,
+            precomputed_energies=precomputed_energies,
+            objective=objective,
+            simulator=simulator,
+        )
+
+    def f(params):
+        params = np.array(params)
+        params[len(params)//2:] *= beta_scaling
+        return func(params)
+
+    return f
