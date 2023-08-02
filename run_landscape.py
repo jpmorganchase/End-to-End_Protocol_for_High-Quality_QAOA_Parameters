@@ -28,24 +28,15 @@ from utils import (
 from evaluate_energy import get_evaluate_energy, load_problem
 
 
-q = 0.5
 sample_seed = 42
 data_dir = "data/random"
 os.makedirs(data_dir, exist_ok=True)
 rng = np.random.default_rng(sample_seed)
 
 
-def kbits(n, k):
-    for bits in itertools.combinations(range(n), k):
-        s = [0] * n
-        for bit in bits:
-            s[bit] = 1
-        yield np.array(s)
-
-
 if __name__ == "__main__":
     simulator = "c"
-    problem = "maxcut"
+    problem = "po"
     p = 1
     qubit_pool = [10]
     seed_pool = range(1)

@@ -47,18 +47,18 @@ if __name__ == "__main__":
     simulator = "c"
     problem = "maxcut"
     p = 5
-    qubit_pool = [16]
+    # qubit_pool = [24]
+    qubit_pool = list(range(10, 19, 2))
     seed_pool = [95]
     seed_pool = list(range(100))
-    resolutions = [128, 32]
-    bounds = [(-2.2, -0.6), (0.9, 1.3)]
+    shots_pool = list(range(100, 1000, 100)) + list(range(1000, 10001, 1000))
     shots_pool = [None]
-    shots_pool = list(range(100, 1001, 100))
-    maxfev_pool = list(range(11, 20))
+    maxfev_pool = list(range(12, 20)) + list(range(20, 101, 10))
+    maxfev_pool = [12, 13, 14, 1000]
     # reps = 2
     budget = [10000]
-    rhobeg_pool = np.linspace(0.03, 0.3, 10).tolist()
     rhobeg_pool = [0.15]
+    rhobeg_pool = np.linspace(0.01, 0.3, 30).tolist() + np.linspace(0.32, 0.5, 10).tolist() + np.linspace(0.55, 1, 20).tolist()
     xtol_pool = [0.045]
     xtol_pool = np.linspace(0.01, 0.0, 4).tolist()
     scaling = [2]
@@ -72,12 +72,13 @@ if __name__ == "__main__":
         instances.append((instance, precomputed_energies))
         if problem == "po":
             sense = 1
-            initial_point = [-1.24727193, 1.04931211]
+            initial_point = [-1.24727193, 1.04931211 * 8]
             minval, maxval = instance["feasible_min"], instance["feasible_max"]
         else:
             sense = -1
             gamma, beta, ar = get_fixed_gamma_beta(3, p, True)
-            print(ar)
+            beta = [b * 4 for b in beta]
+            # print(ar)
             initial_point = gamma + beta
             # initial_point = [0, 0]
             # initial_point = initial_point[0] + initial_point[1]
@@ -103,6 +104,17 @@ if __name__ == "__main__":
                 executor_kwargs={"shots": shots_pool},
             ),
         ]
+
+        eval_func = get_evaluate_energy(
+            instance,
+            precomputed_energies,
+            p,
+            objective=("expectation",),
+            simulator=simulator,
+        )
+        initial_ar.append(eval_point(initial_point, eval_func, (minval, maxval), sense))
+        print(f"{n=} {seed=} initial_ar={initial_ar[-1]}", flush=True)
+
         tuner = HyperparameterTuner(configs)
         shotted_executor = CustomExecutor(
             partial(
@@ -118,14 +130,7 @@ if __name__ == "__main__":
             )
         )
         tuner.run(shotted_executor)
-        eval_func = get_evaluate_energy(
-            instance,
-            precomputed_energies,
-            p,
-            objective=("expectation",),
-            simulator=simulator,
-        )
-        initial_ar.append(eval_point(initial_point, eval_func, (minval, maxval), sense))
+
         result = tuner.process_results(
             partial(
                 process_results,
@@ -139,17 +144,17 @@ if __name__ == "__main__":
                 results[key] = np.empty((len(qubit_pool) * len(seed_pool),) + val.shape)
             results[key][i] = val
 
-    print("Initial AR:", np.mean(initial_ar) / len(qubit_pool) / len(seed_pool))
+    print("Mean initial AR:", np.mean(initial_ar))
     for i, (key, val) in enumerate(results.items()):
         mean = np.mean(val, axis=0)
         indices = np.argsort(mean.flat)[-1:-100:-1]
         for r, c in zip(mean.flatten()[indices], configs[i].interpret(indices)):
             print(r, c)
 
-    for config, result in zip(configs, results):
+    for config in configs:
         method = config.method
         pickle.dump(
-            {"config": config, "result": result, "initial_ar": initial_ar},
+            {"config": config, "result": results[method], "initial_ar": initial_ar},
             open(
                 f"data/{problem}/configs/{method}-p{p}-q{qubit_pool}-s{seed_pool[0]}-{seed_pool[-1]}.pckl",
                 "wb",
