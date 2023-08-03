@@ -44,30 +44,30 @@ def process_results(method, i, trace, result, eval_func, optimal_metric, sense):
 
 
 if __name__ == "__main__":
-    simulator = "auto"
+    simulator = "c"
     problem = "maxcut"
     p = 5
     # qubit_pool = [24]
     qubit_pool = list(range(10, 21, 2))
     seed_pool = [95]
     seed_pool = list(range(100))
-    shots_pool = list(range(100, 1000, 100)) + list(range(1000, 10001, 1000))
     shots_pool = [None]
-    maxfev_pool = list(range(12, 20)) + list(range(20, 101, 10))
+    shots_pool = list(range(100, 1000, 100)) + list(range(1000, 10000, 1000)) + list(range(10000, 100001, 10000))
     maxfev_pool = [12, 13, 14, 15, 1000]
+    maxfev_pool = list(range(12, 20)) + list(range(20, 100, 10)) + list(range(100, 1000, 100))
     # reps = 2
     budget = [10000]
-    rhobeg_pool = [0.15]
-    rhobeg_pool = np.linspace(0.01, 0.3, 30).tolist() + np.linspace(0.32, 0.5, 10).tolist() + np.linspace(0.55, 1, 20).tolist()
+    rhobeg_pool = np.linspace(0.01, 0.3, 30).tolist() + np.linspace(0.32, 0.5, 10).tolist() + np.linspace(0.55, 1, 10).tolist()
+    rhobeg_pool = [0.125]
     xtol_pool = [0.045]
     xtol_pool = np.linspace(0.01, 0.0, 4).tolist()
     scaling = [2]
     scaling = np.linspace(1.4, 3.2, 10).tolist()
 
-    instances = []
-    results = {}
-    initial_ar = []
     for i, n in enumerate(qubit_pool):
+        instances = []
+        results = {}
+        initial_ar = []
         for j, seed in enumerate(seed_pool):
             instance, precomputed_energies = load_problem(problem, n, seed)
             instances.append((instance, precomputed_energies))
@@ -141,23 +141,23 @@ if __name__ == "__main__":
             )
             for key, val in result.items():
                 if key not in results:
-                    results[key] = np.empty((len(qubit_pool), len(seed_pool),) + val.shape)
-                results[key][i][j] = val
+                    results[key] = np.empty((len(seed_pool),) + val.shape)
+                results[key][j] = val
 
         for config in configs:
             method = config.method
             pickle.dump(
                 {"config": config, "result": results[method], "initial_ar": initial_ar},
                 open(
-                    f"data/{problem}/configs/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}.pckl",
+                    f"data/{problem}/configs/budget/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}.pckl",
                     "wb",
                 ),
             )
 
-    print("Mean initial AR:", np.mean(initial_ar))
-    for i, (key, val) in enumerate(results.items()):
-        mean = np.mean(val, axis=0)
-        indices = np.argsort(mean.flat)[-1:-100:-1]
-        for r, c in zip(mean.flatten()[indices], configs[i].interpret(indices)):
-            print(r, c)
+        print("Mean initial AR:", np.mean(initial_ar))
+        for i, (key, val) in enumerate(results.items()):
+            mean = np.mean(val, axis=0)
+            indices = np.argsort(mean.flat)[-1:-100:-1]
+            for r, c in zip(mean.flatten()[indices], configs[i].interpret(indices)):
+                print(r, c)
 
