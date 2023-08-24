@@ -44,21 +44,20 @@ def process_results(method, i, trace, result, eval_func, optimal_metric, sense):
 
 
 if __name__ == "__main__":
-    simulator = "c"
+    simulator = "auto"
     problem = "maxcut"
-    p = 5
-    # qubit_pool = [24]
-    qubit_pool = list(range(10, 21, 2))
-    seed_pool = [95]
-    seed_pool = list(range(100))
+    p = 1
+    qubit_pool = list(range(10, 15, 2))
+    seed_pool = list(range(1000))
+    budget = 10000
+    maxfev_pool = [200]
+    maxfev_pool = list(range(4, 20))
+    shots_pool = budget // np.array(maxfev_pool)
     shots_pool = [None]
-    shots_pool = list(range(100, 1000, 100)) + list(range(1000, 10000, 1000)) + list(range(10000, 100001, 10000))
-    maxfev_pool = [12, 13, 14, 15, 1000]
-    maxfev_pool = list(range(12, 20)) + list(range(20, 100, 10)) + list(range(100, 1000, 100))
+    shots_pool = list(range(500, 2501, 100))
     # reps = 2
-    budget = [10000]
-    rhobeg_pool = np.linspace(0.01, 0.3, 30).tolist() + np.linspace(0.32, 0.5, 10).tolist() + np.linspace(0.55, 1, 10).tolist()
-    rhobeg_pool = [0.125]
+    rhobeg_pool = np.linspace(0.01, 0.3, 30).tolist()
+    rhobeg_pool = [0.05]
     xtol_pool = [0.045]
     xtol_pool = np.linspace(0.01, 0.0, 4).tolist()
     scaling = [2]
@@ -100,7 +99,7 @@ if __name__ == "__main__":
                     initial_point=[initial_point],
                     maxeval=maxfev_pool,
                     initial_step=rhobeg_pool,
-                    xtol_abs=[1e-10],
+                    ftol_rel=[1e-13],
                     executor_kwargs={"shots": shots_pool},
                 ),
             ]
@@ -113,7 +112,7 @@ if __name__ == "__main__":
                 simulator=simulator,
             )
             initial_ar.append(eval_point(initial_point, eval_func, (minval, maxval), sense))
-            print(f"{n=} {seed=} initial_ar={initial_ar[-1]}", flush=True)
+            print(f"{p=} {n=} {seed=} initial_ar={initial_ar[-1]}", flush=True)
 
             tuner = HyperparameterTuner(configs)
             shotted_executor = CustomExecutor(
