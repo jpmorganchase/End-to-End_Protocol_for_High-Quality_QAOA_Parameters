@@ -19,10 +19,12 @@ from utils import get_problem, get_real_problem, get_adjusted_state, precompute_
 
 
 def load_problem(
-    problem: Literal["maxcut", "po"], n: int, seed: int
+    problem: Literal["maxcut", "maxcut-unweighted", "po"], n: int, seed: int
 ) -> tuple[dict[str, Any] | nx.Graph, NDArray[np.float_]]:
     if problem == "maxcut":
         return load_maxcut_problem(n, seed)
+    if problem == "maxcut-unweighted":
+        return load_maxcut_problem(n, seed, False)
     if problem == "po":
         return load_po_problem(n, seed)
     raise ValueError(f"Problem {problem} not recognized")
@@ -48,24 +50,29 @@ def sample_gaussian_mixture(
     return np.array(samples)
 
 
-def load_maxcut_problem(n: int, seed: int) -> tuple[nx.Graph, NDArray[np.float_]]:
+def load_maxcut_problem(n: int, seed: int, weighted: bool = True) -> tuple[nx.Graph, NDArray[np.float_]]:
     g = nx.random_regular_graph(3, n, seed)
 
-    # Define the parameters for the Gaussian components
-    component1 = {"mean": 0, "std_dev": 1, "weight": 0.5}
-    component2 = {"mean": 5, "std_dev": 2, "weight": 0.3}
-    component3 = {"mean": 10, "std_dev": 1, "weight": 0.2}
-    components = [component1, component2, component3]
-    weights = sample_gaussian_mixture(3 * n // 2, components, seed)
-    # generate random weights
-    # weights = np.random.uniform(0, 10, g.number_of_edges())
-    # rescale following the rule in Eq. 6 of https://arxiv.org/pdf/2305.15201.pdf
-    weights = weights / np.sqrt(np.mean(weights**2))
+    if weighted:
+        # Define the parameters for the Gaussian components
+        component1 = {"mean": 0, "std_dev": 1, "weight": 0.5}
+        component2 = {"mean": 5, "std_dev": 2, "weight": 0.3}
+        component3 = {"mean": 10, "std_dev": 1, "weight": 0.2}
+        components = [component1, component2, component3]
+        weights = sample_gaussian_mixture(3 * n // 2, components, seed)
+        # weights = sample_gaussian_mixture(3 * n // 4, components, 279)
+        # generate random weights
+        # weights = np.random.uniform(0, 10, g.number_of_edges())
+        # rescale following the rule in Eq. 6 of https://arxiv.org/pdf/2305.15201.pdf
+        # rng = np.random.default_rng(seed)
+        # weights = rng.choice(weights, size=2*len(weights))
+        # weights = np.tile(weights, 2)
+        weights = weights / np.sqrt(np.mean(weights**2))
 
-    for i, (w, v) in enumerate(g.edges):
-        g.edges[w, v]["weight"] = weights[i]
+        for i, (w, v) in enumerate(g.edges):
+            g.edges[w, v]["weight"] = weights[i]
 
-    return g, precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n)
+    return g, None # precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n)
 
 
 def load_po_problem(n, seed):
