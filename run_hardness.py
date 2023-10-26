@@ -1,6 +1,8 @@
 import argparse
 import pickle
 import warnings
+from time import sleep, time
+import gc
 
 import numpy as np
 import networkx as nx
@@ -26,6 +28,7 @@ parser.add_argument("--problem", type=str, default="maxcut")
 parser.add_argument("-n", type=int, default=32)
 parser.add_argument("-p", type=int, default=1)
 parser.add_argument("-s", "--seed", type=int, default=1000)
+parser.add_argument("-b", "--batch", type=int, default=0)
 parser.add_argument("-d", "--delta", type=float, default=0.1)
 parser.add_argument("--qiskit", default=False, action="store_true")
 parser.add_argument("--cpu", default=False, action="store_true")
@@ -37,11 +40,12 @@ print(args)
 problem = args.problem
 n = args.n
 p = args.p
-seed_pool = list(range(args.seed))
+seed_pool = list(range(args.batch * args.seed, (args.batch + 1) * args.seed))
 delta = args.delta
 
 data = []
 for seed in seed_pool:
+    start_time = time()
     data.append([])
     gamma, beta = get_fixed_gamma_beta(3, p)
     
@@ -110,11 +114,10 @@ for seed in seed_pool:
         # instance = nx.random_regular_graph(3, n, seed)
         eval_func = get_evaluate_energy(
             instance,
-            # precomputed_energies,
-            None,
+            precomputed_energies,
             p,
             objective="expectation",
-            simulator="c" if args.cpu else "gpu",
+            simulator="c" if args.cpu else "auto",
         )
         beta = [b * 4 for b in beta]
         
@@ -125,6 +128,13 @@ for seed in seed_pool:
             data[-1].append(eval_func(gamma + beta))
             gamma[i] -= delta
 
+    print(f"{seed=}", data[-1], time() - start_time)
+    del eval_func
 
-    print(f"{seed=}", data[-1])
-
+pickle.dump(
+    {"data": np.array(data), "args": args},
+    open(
+        f"data/{problem}/hardness/p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}-d{delta}.pckl",
+        "wb",
+    ),
+)
