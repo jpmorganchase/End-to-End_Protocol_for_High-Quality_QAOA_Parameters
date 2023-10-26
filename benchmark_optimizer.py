@@ -46,7 +46,7 @@ def process_results(method, i, trace, result, eval_func, optimal_metric, sense):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--target", type=str, default="exact")
+    parser.add_argument("-t", "--target", type=str, default="max_ar")
     parser.add_argument("--problem", type=str, default="maxcut")
     parser.add_argument("-n", type=int, default=12)
     parser.add_argument("-p", type=int, default=1)
@@ -63,13 +63,15 @@ if __name__ == "__main__":
     simulator = "c" if args.cpu else "auto"
     qubit_pool = list(range(args.n, args.n + 1, 2))
     budget = 10000
-    if args.target == "exact":
+    if args.target == "max_ar":
         maxfev_pool = [200]
         shots_pool = [None]
     elif args.target == "budget":
         maxfev_pool = list(range(2 * p + 2, 20)) + list(range(20, 51, 5))
         # shots_pool = list(range(500, 2501, 100))
         shots_pool = budget // np.array(maxfev_pool)
+    else:
+        raise NotImplementedError()
     # reps = 2
     rhobeg_pool = np.linspace(0.01, 0.3, 30).tolist()
     rhobeg_pool = [0.05]
@@ -174,9 +176,9 @@ if __name__ == "__main__":
         for config in configs:
             method = config.method
             pickle.dump(
-                {"config": config, "result": results[method], "initial_ar": initial_ar, "optimal_params": optimal_params},
+                {"config": config, "result": results[method], "initial_ar": initial_ar, "optimal_params": optimal_params[method]},
                 open(
-                    f"data/{problem}/configs/budget/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}.pckl",
+                    f"data/{problem}/configs/{args.target}/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}.pckl",
                     "wb",
                 ),
             )
