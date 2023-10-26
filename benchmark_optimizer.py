@@ -1,3 +1,4 @@
+import argparse
 import itertools
 import pickle
 from functools import partial
@@ -13,7 +14,7 @@ from oscar import (
     HyperparameterTuner,
     HyperparameterGrid,
 )
-from qokit.parameter_utils import get_fixed_gamma_beta
+from qokit.parameter_utils import get_fixed_gamma_beta, get_sk_gamma_beta
 
 from restarting_cobyla import RECOBYLA
 from evaluate_energy import get_evaluate_energy, load_problem
@@ -44,17 +45,31 @@ def process_results(method, i, trace, result, eval_func, optimal_metric, sense):
 
 
 if __name__ == "__main__":
-    simulator = "auto"
-    problem = "maxcut"
-    p = 1
-    qubit_pool = list(range(10, 15, 2))
-    seed_pool = list(range(1000))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-t", "--target", type=str, default="exact")
+    parser.add_argument("--problem", type=str, default="maxcut")
+    parser.add_argument("-n", type=int, default=12)
+    parser.add_argument("-p", type=int, default=1)
+    parser.add_argument("-s", "--seed", type=int, default=1000)
+    parser.add_argument("-b", "--batch", type=int, default=0)
+    parser.add_argument("--cpu", default=False, action="store_true")
+
+    args = parser.parse_args()
+    print(args)
+
+    problem = args.problem
+    p = args.p
+    seed_pool = list(range(args.batch * args.seed, (args.batch + 1) * args.seed))
+    simulator = "c" if args.cpu else "auto"
+    qubit_pool = list(range(args.n, args.n + 1, 2))
     budget = 10000
-    maxfev_pool = [200]
-    maxfev_pool = list(range(4, 20))
-    shots_pool = budget // np.array(maxfev_pool)
-    shots_pool = [None]
-    shots_pool = list(range(500, 2501, 100))
+    if args.target == "exact":
+        maxfev_pool = [200]
+        shots_pool = [None]
+    elif args.target == "budget":
+        maxfev_pool = list(range(2 * p + 2, 20)) + list(range(20, 51, 5))
+        # shots_pool = list(range(500, 2501, 100))
+        shots_pool = budget // np.array(maxfev_pool)
     # reps = 2
     rhobeg_pool = np.linspace(0.01, 0.3, 30).tolist()
     rhobeg_pool = [0.05]
@@ -65,18 +80,22 @@ if __name__ == "__main__":
 
     for i, n in enumerate(qubit_pool):
         instances = []
-        results = {}
+        results, optimal_params = {}, {}
         initial_ar = []
         for j, seed in enumerate(seed_pool):
-            instance, precomputed_energies = load_problem(problem, n, seed)
+            instance, precomputed_energies = load_problem(problem, n, seed, True)
             instances.append((instance, precomputed_energies))
             if problem == "po":
                 sense = 1
                 initial_point = [-1.24727193, 1.04931211 * 8]
                 minval, maxval = instance["feasible_min"], instance["feasible_max"]
             else:
+                if problem == "skmodel":
+                    gamma, beta = get_sk_gamma_beta(p)
+                    gamma, beta = gamma.tolist(), beta.tolist()
+                else:
+                    gamma, beta, ar = get_fixed_gamma_beta(3, p, True)
                 sense = -1
-                gamma, beta, ar = get_fixed_gamma_beta(3, p, True)
                 beta = [b * 4 for b in beta]
                 # print(ar)
                 initial_point = gamma + beta
@@ -108,7 +127,7 @@ if __name__ == "__main__":
                 instance,
                 precomputed_energies,
                 p,
-                objective=("expectation",),
+                objective="expectation",
                 simulator=simulator,
             )
             initial_ar.append(eval_point(initial_point, eval_func, (minval, maxval), sense))
@@ -138,15 +157,24 @@ if __name__ == "__main__":
                     sense=sense,
                 )
             )
+            params = tuner.process_results(
+                lambda method, ind, trace, res: trace.optimal_params
+            )
+
             for key, val in result.items():
                 if key not in results:
                     results[key] = np.empty((len(seed_pool),) + val.shape)
                 results[key][j] = val
+                
+            for key, val in params.items():
+                if key not in optimal_params:
+                    optimal_params[key] = np.empty((len(seed_pool),) + val.shape)
+                optimal_params[key][j] = val
 
         for config in configs:
             method = config.method
             pickle.dump(
-                {"config": config, "result": results[method], "initial_ar": initial_ar},
+                {"config": config, "result": results[method], "initial_ar": initial_ar, "optimal_params": optimal_params},
                 open(
                     f"data/{problem}/configs/budget/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}.pckl",
                     "wb",

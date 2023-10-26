@@ -19,14 +19,16 @@ from utils import get_problem, get_real_problem, get_adjusted_state, precompute_
 
 
 def load_problem(
-    problem: Literal["maxcut", "maxcut-unweighted", "po"], n: int, seed: int
+    problem: Literal["maxcut", "maxcut-unweighted", "po"], n: int, seed: int, precompute_energy: bool = False
 ) -> tuple[dict[str, Any] | nx.Graph, NDArray[np.float_]]:
     if problem == "maxcut":
-        return load_maxcut_problem(n, seed)
+        return load_maxcut_problem(n, seed, True, precompute_energy)
     if problem == "maxcut-unweighted":
-        return load_maxcut_problem(n, seed, False)
+        return load_maxcut_problem(n, seed, False, precompute_energy)
     if problem == "po":
-        return load_po_problem(n, seed)
+        return load_po_problem(n, seed, precompute_energy)
+    if problem == "skmodel":
+        return load_skmodel_problem(n, seed, precompute_energy)
     raise ValueError(f"Problem {problem} not recognized")
 
 
@@ -50,7 +52,19 @@ def sample_gaussian_mixture(
     return np.array(samples)
 
 
-def load_maxcut_problem(n: int, seed: int, weighted: bool = True) -> tuple[nx.Graph, NDArray[np.float_]]:
+def load_skmodel_problem(n: int, seed: int, precompute_energy: bool = False) -> tuple[nx.Graph, NDArray[np.float_]]:
+    g = nx.complete_graph(n)
+
+    rng = np.random.default_rng(seed)
+    weights = rng.normal(size=n * (n - 1) // 2) / np.sqrt(n)
+    # weights = weights / np.sqrt(np.mean(weights**2))
+
+    for i, (w, v) in enumerate(g.edges):
+        g.edges[w, v]["weight"] = weights[i]
+
+    return g, precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n) if precompute_energy else None
+
+def load_maxcut_problem(n: int, seed: int, weighted: bool = True, precompute_energy: bool = False) -> tuple[nx.Graph, NDArray[np.float_]]:
     g = nx.random_regular_graph(3, n, seed)
 
     if weighted:
@@ -72,10 +86,10 @@ def load_maxcut_problem(n: int, seed: int, weighted: bool = True) -> tuple[nx.Gr
         for i, (w, v) in enumerate(g.edges):
             g.edges[w, v]["weight"] = weights[i]
 
-    return g, None # precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n)
+    return g, precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n) if precompute_energy else None
 
 
-def load_po_problem(n, seed):
+def load_po_problem(n, seed, precompute_energy: bool = False):
     k = n // 2
     po_problem = get_real_problem(n, k, 0.5, seed, pre=1)
     means_in_spins = np.array(
