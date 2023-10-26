@@ -2,44 +2,22 @@
 # os.environ["NUMBA_NUM_THREADS"] = "32"
 
 import itertools
-import os
-import pickle
-import time
-from functools import partial
 from math import pi
-from pathlib import Path
-
-import numba
 import numpy as np
-from oscar import BPDNReconstructor, CustomExecutor, Landscape
-from qokit.fur import QAOAFURXYRingSimulatorGPU, QAOAFURXYRingSimulatorC
-from qokit.fur.c.utils import ComplexArray
-from tqdm import tqdm
-
-from circuit_utils import get_configuration_cost_kw
-from optimizer import circuit_measurement_function
-from utils import (
-    generate_dicke_state_fast,
-    get_adjusted_state,
-    get_problem,
-    get_real_problem,
-    precompute_energies_parallel,
-)
+from oscar import CustomExecutor, Landscape
 from evaluate_energy import get_evaluate_energy, load_problem
 
 
 sample_seed = 42
-data_dir = "data/random"
-os.makedirs(data_dir, exist_ok=True)
 rng = np.random.default_rng(sample_seed)
 
 
 if __name__ == "__main__":
-    simulator = "c"
-    problem = "po"
+    simulator = "auto"
+    problem = "skmodel"
     p = 1
     qubit_pool = [10]
-    seed_pool = range(1)
+    seed_pool = range(10)
     # resolutions = [128, 32]
     # bounds = [(-2.2, -0.6), (0.9, 1.3)]
     # bounds = [(-4, 0), (0, 1)]
