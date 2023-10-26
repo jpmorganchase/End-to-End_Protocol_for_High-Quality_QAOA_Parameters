@@ -133,3 +133,11 @@ dmypy.json
 
 # large data files
 data/random/precomputed_energies_rule*
+
+# HTCondor
+joblog/
+submit.sub
+interactive.sub
+docker.sub
+prepare_env.sh
+prepare_env_docker.sh
