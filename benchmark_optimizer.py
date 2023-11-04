@@ -83,7 +83,7 @@ if __name__ == "__main__":
         raise NotImplementedError()
     # reps = 2
     rhobeg_pool = np.linspace(0.01, 0.3, 30).tolist()
-    rhobeg_pool = [0.05]
+    rhobeg_pool = [0.1]
     xtol_pool = [0.045]
     xtol_pool = np.linspace(0.01, 0.0, 4).tolist()
     scaling = [2]
