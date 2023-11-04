@@ -23,25 +23,28 @@ sample_seed = 42
 rng = np.random.default_rng(sample_seed)
 
 
-def shotted_measurement(params, function, shots, sense):
+def shotted_measurement(params, function, shots, sense, fix_beta = None):
+    if fix_beta is not None:
+        params = np.concatenate([params, fix_beta])
     mean, std = function(params)
     if shots is None:
         return sense * mean
     return sense * rng.normal(mean, std / np.sqrt(shots))
 
 
-def eval_point(point, eval_func, optimal_metric, sense):
-    mean = eval_func(point)
+def eval_point(point, eval_func, optimal_metric, sense, fix_beta = None):
+    if fix_beta is not None:
+        point = np.concatenate([point, fix_beta])
     ar = (
         sense
-        * (mean - optimal_metric[int((sense + 1) / 2)])
+        * (eval_func(point) - optimal_metric[int((sense + 1) / 2)])
         / (optimal_metric[0] - optimal_metric[1])
     )
     return ar
 
 
-def process_results(method, i, trace, result, eval_func, optimal_metric, sense):
-    return eval_point(trace.optimal_params, eval_func, optimal_metric, sense)
+def process_results(method, i, trace, result, eval_func, optimal_metric, sense, fix_beta = None):
+    return eval_point(trace.optimal_params, eval_func, optimal_metric, sense, fix_beta)
 
 
 if __name__ == "__main__":
@@ -53,6 +56,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--seed", type=int, default=1000)
     parser.add_argument("-b", "--batch", type=int, default=0)
     parser.add_argument("--cpu", default=False, action="store_true")
+    parser.add_argument("--fix-beta", default=False, action="store_true")
 
     args = parser.parse_args()
     print(args)
@@ -63,11 +67,16 @@ if __name__ == "__main__":
     simulator = "c" if args.cpu else "auto"
     qubit_pool = list(range(args.n, args.n + 1, 2))
     budget = 10000
-    if args.target == "max_ar":
+    target = args.target
+    if target == "max_ar":
         maxfev_pool = [200]
         shots_pool = [None]
-    elif args.target == "budget":
-        maxfev_pool = list(range(2 * p + 2, 20)) + list(range(20, 51, 5))
+    elif target == "budget":
+        if args.fix_beta:
+            target += "-fix-beta"
+            maxfev_pool = list(range(p + 2, 20)) + list(range(20, 51, 5))
+        else:
+            maxfev_pool = list(range(2 * p + 2, 20)) + list(range(20, 51, 5))
         # shots_pool = list(range(500, 2501, 100))
         shots_pool = budget // np.array(maxfev_pool)
     else:
@@ -100,7 +109,7 @@ if __name__ == "__main__":
                 sense = -1
                 beta = [b * 4 for b in beta]
                 # print(ar)
-                initial_point = gamma + beta
+                initial_point = gamma if args.fix_beta else gamma + beta
                 # initial_point = [0, 0]
                 # initial_point = initial_point[0] + initial_point[1]
                 minval, maxval = np.min(precomputed_energies), np.max(precomputed_energies)
@@ -132,7 +141,7 @@ if __name__ == "__main__":
                 objective="expectation",
                 simulator=simulator,
             )
-            initial_ar.append(eval_point(initial_point, eval_func, (minval, maxval), sense))
+            initial_ar.append(eval_point(initial_point, eval_func, (minval, maxval), sense, beta if args.fix_beta else None))
             print(f"{p=} {n=} {seed=} initial_ar={initial_ar[-1]}", flush=True)
 
             tuner = HyperparameterTuner(configs)
@@ -147,6 +156,7 @@ if __name__ == "__main__":
                         simulator=simulator,
                     ),
                     sense=sense,
+                    fix_beta=beta if args.fix_beta else None,
                 )
             )
             tuner.run(shotted_executor)
@@ -157,6 +167,7 @@ if __name__ == "__main__":
                     eval_func=eval_func,
                     optimal_metric=(minval, maxval),
                     sense=sense,
+                    fix_beta=beta if args.fix_beta else None,
                 )
             )
             params = tuner.process_results(
@@ -178,7 +189,7 @@ if __name__ == "__main__":
             pickle.dump(
                 {"config": config, "result": results[method], "initial_ar": initial_ar, "optimal_params": optimal_params[method]},
                 open(
-                    f"data/{problem}/configs/{args.target}/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}.pckl",
+                    f"data/{problem}/configs/{target}/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}.pckl",
                     "wb",
                 ),
             )
