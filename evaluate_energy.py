@@ -1,25 +1,29 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from typing import Any, Literal
-from functools import partial
 import itertools
+from collections.abc import Callable, Sequence
+from functools import partial
+from typing import Any, Literal
 
 import networkx as nx
 import numpy as np
 from numpy.typing import NDArray
-from qokit.maxcut import maxcut_obj, get_adjacency_matrix
+from qokit.maxcut import get_adjacency_matrix, maxcut_obj
 from qokit.qaoa_objective_maxcut import get_qaoa_maxcut_objective
 from qokit.qaoa_objective_portfolio import get_qaoa_portfolio_objective
 from qokit.utils import brute_force, precompute_energies
 from tqdm import tqdm
 
 from circuit_utils import get_configuration_cost_kw
-from utils import get_problem, get_real_problem, get_adjusted_state, precompute_energies_parallel
+from utils import (get_adjusted_state, get_problem, get_real_problem,
+                   precompute_energies_parallel)
 
 
 def load_problem(
-    problem: Literal["maxcut", "maxcut-unweighted", "po"], n: int, seed: int, precompute_energy: bool = False
+    problem: Literal["maxcut", "maxcut-unweighted", "po"],
+    n: int,
+    seed: int,
+    precompute_energy: bool = False,
 ) -> tuple[dict[str, Any] | nx.Graph, NDArray[np.float_]]:
     if problem == "maxcut":
         return load_maxcut_problem(n, seed, True, precompute_energy)
@@ -52,7 +56,9 @@ def sample_gaussian_mixture(
     return np.array(samples)
 
 
-def load_skmodel_problem(n: int, seed: int, precompute_energy: bool = False) -> tuple[nx.Graph, NDArray[np.float_]]:
+def load_skmodel_problem(
+    n: int, seed: int, precompute_energy: bool = False
+) -> tuple[nx.Graph, NDArray[np.float_]]:
     g = nx.complete_graph(n)
 
     rng = np.random.default_rng(seed)
@@ -62,9 +68,17 @@ def load_skmodel_problem(n: int, seed: int, precompute_energy: bool = False) -> 
     for i, (w, v) in enumerate(g.edges):
         g.edges[w, v]["weight"] = weights[i]
 
-    return g, precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n) if precompute_energy else None
+    return (
+        g,
+        precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n)
+        if precompute_energy
+        else None,
+    )
 
-def load_maxcut_problem(n: int, seed: int, weighted: bool = True, precompute_energy: bool = False) -> tuple[nx.Graph, NDArray[np.float_]]:
+
+def load_maxcut_problem(
+    n: int, seed: int, weighted: bool = True, precompute_energy: bool = False
+) -> tuple[nx.Graph, NDArray[np.float_]]:
     g = nx.random_regular_graph(3, n, seed)
 
     if weighted:
@@ -86,7 +100,12 @@ def load_maxcut_problem(n: int, seed: int, weighted: bool = True, precompute_ene
         for i, (w, v) in enumerate(g.edges):
             g.edges[w, v]["weight"] = weights[i]
 
-    return g, precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n) if precompute_energy else None
+    return (
+        g,
+        precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n)
+        if precompute_energy
+        else None,
+    )
 
 
 def load_po_problem(n, seed, precompute_energy: bool = False):
@@ -127,11 +146,11 @@ def load_po_problem(n, seed, precompute_energy: bool = False):
     po_problem["feasible_min_x"] = min_x
     po_problem["feasible_max_x"] = max_x
     po_problem["feasible_mean"] = mean_constrained
-    precomputed_energies = get_adjusted_state(
-        precompute_energies_parallel(po_obj, n, 1)
-    ).real
+    # precomputed_energies = get_adjusted_state(
+    #     precompute_energies_parallel(po_obj, n, 1)
+    # ).real
 
-    return po_problem, precomputed_energies
+    return po_problem, None
 
 
 def get_evaluate_energy(
@@ -163,7 +182,7 @@ def get_evaluate_energy(
 
     def f(params):
         params = np.array(params)
-        params[len(params)//2:] *= beta_scaling
+        params[len(params) // 2 :] *= beta_scaling
         return func(params)
 
     return f
