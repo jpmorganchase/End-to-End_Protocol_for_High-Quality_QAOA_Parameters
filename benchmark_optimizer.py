@@ -5,25 +5,19 @@ from functools import partial
 from pprint import pprint
 
 import numpy as np
-from oscar import (
-    CustomExecutor,
-    InterpolatedLandscapeExecutor,
-    NLoptOptimizer,
-    QiskitOptimizer,
-    plot_2d_landscape,
-    HyperparameterTuner,
-    HyperparameterGrid,
-)
+from oscar import (CustomExecutor, HyperparameterGrid, HyperparameterTuner,
+                   InterpolatedLandscapeExecutor, NLoptOptimizer,
+                   QiskitOptimizer, plot_2d_landscape)
 from qokit.parameter_utils import get_fixed_gamma_beta, get_sk_gamma_beta
 
-from restarting_cobyla import RECOBYLA
 from evaluate_energy import get_evaluate_energy, load_problem
+from restarting_cobyla import RECOBYLA
 
 sample_seed = 42
 rng = np.random.default_rng(sample_seed)
 
 
-def shotted_measurement(params, function, shots, sense, fix_beta = None):
+def shotted_measurement(params, function, shots, sense, fix_beta=None):
     if fix_beta is not None:
         params = np.concatenate([params, fix_beta])
     mean, std = function(params)
@@ -32,7 +26,7 @@ def shotted_measurement(params, function, shots, sense, fix_beta = None):
     return sense * rng.normal(mean, std / np.sqrt(shots))
 
 
-def eval_point(point, eval_func, optimal_metric, sense, fix_beta = None):
+def eval_point(point, eval_func, optimal_metric, sense, fix_beta=None):
     if fix_beta is not None:
         point = np.concatenate([point, fix_beta])
     ar = (
@@ -43,7 +37,9 @@ def eval_point(point, eval_func, optimal_metric, sense, fix_beta = None):
     return ar
 
 
-def process_results(method, i, trace, result, eval_func, optimal_metric, sense, fix_beta = None):
+def process_results(
+    method, i, trace, result, eval_func, optimal_metric, sense, fix_beta=None
+):
     return eval_point(trace.optimal_params, eval_func, optimal_metric, sense, fix_beta)
 
 
@@ -98,21 +94,25 @@ if __name__ == "__main__":
             instances.append((instance, precomputed_energies))
             if problem == "po":
                 sense = 1
-                initial_point = [-1.24727193, 1.04931211 * 8]
+                # initial_point = [-1.24727193, 1.04931211 * 8]
+                gamma, beta = get_sk_gamma_beta(p)
+                gamma, beta = gamma.tolist(), beta.tolist()
                 minval, maxval = instance["feasible_min"], instance["feasible_max"]
-            else:
-                if problem == "skmodel":
-                    gamma, beta = get_sk_gamma_beta(p)
-                    gamma, beta = gamma.tolist(), beta.tolist()
-                else:
-                    gamma, beta, ar = get_fixed_gamma_beta(3, p, True)
+            elif problem == "skmodel":
                 sense = -1
-                beta = [b * 4 for b in beta]
-                # print(ar)
-                initial_point = gamma if args.fix_beta else gamma + beta
-                # initial_point = [0, 0]
-                # initial_point = initial_point[0] + initial_point[1]
-                minval, maxval = np.min(precomputed_energies), np.max(precomputed_energies)
+                gamma, beta = get_sk_gamma_beta(p)
+                gamma, beta = gamma.tolist(), beta.tolist()
+                minval, maxval = np.min(precomputed_energies), np.max(
+                    precomputed_energies
+                )
+            else:
+                sense = -1
+                gamma, beta, ar = get_fixed_gamma_beta(3, p, True)
+                minval, maxval = np.min(precomputed_energies), np.max(
+                    precomputed_energies
+                )
+            beta = [b * 4 for b in beta]
+            initial_point = gamma if args.fix_beta else gamma + beta
 
             configs = [
                 # HyperparameterGrid(
@@ -141,7 +141,15 @@ if __name__ == "__main__":
                 objective="expectation",
                 simulator=simulator,
             )
-            initial_ar.append(eval_point(initial_point, eval_func, (minval, maxval), sense, beta if args.fix_beta else None))
+            initial_ar.append(
+                eval_point(
+                    initial_point,
+                    eval_func,
+                    (minval, maxval),
+                    sense,
+                    beta if args.fix_beta else None,
+                )
+            )
             print(f"{p=} {n=} {seed=} initial_ar={initial_ar[-1]}", flush=True)
 
             tuner = HyperparameterTuner(configs)
@@ -178,7 +186,7 @@ if __name__ == "__main__":
                 if key not in results:
                     results[key] = np.empty((len(seed_pool),) + val.shape)
                 results[key][j] = val
-                
+
             for key, val in params.items():
                 if key not in optimal_params:
                     optimal_params[key] = np.empty((len(seed_pool),) + val.shape)
@@ -187,7 +195,12 @@ if __name__ == "__main__":
         for config in configs:
             method = config.method
             pickle.dump(
-                {"config": config, "result": results[method], "initial_ar": initial_ar, "optimal_params": optimal_params[method]},
+                {
+                    "config": config,
+                    "result": results[method],
+                    "initial_ar": initial_ar,
+                    "optimal_params": optimal_params[method],
+                },
                 open(
                     f"data/{problem}/configs/{target}/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}.pckl",
                     "wb",
@@ -200,4 +213,3 @@ if __name__ == "__main__":
             indices = np.argsort(mean.flat)[-1:-100:-1]
             for r, c in zip(mean.flatten()[indices], configs[i].interpret(indices)):
                 print(r, c)
-
