@@ -177,12 +177,13 @@ def get_data(N, seed=1, real=False):
     """
     import datetime
 
-    from qiskit_finance.data_providers import RandomDataProvider, YahooDataProvider
+    from qiskit_finance.data_providers import (RandomDataProvider,
+                                               YahooDataProvider)
 
-    tickers = []
-    for i in range(N):
-        tickers.append("t" + str(i))
     if real is False:
+        tickers = []
+        for i in range(N):
+            tickers.append("t" + str(i))
         data = RandomDataProvider(
             tickers=tickers,
             start=datetime.datetime(2016, 1, 1),
@@ -224,12 +225,13 @@ def get_data(N, seed=1, real=False):
             "GE",
             "MMM",
         ]
+        
+        if N > len(stock_symbols):
+            raise ValueError(f"N greater than {len(stock_symbols)} not supported yet")
 
         # switch to Atithi's implementation
-        rng = np.random.default_rng(seed)
-        date = rng.integers(0, 60)
-        year = 2015 + date // 12
-        month = date % 12 + 1
+        year = 2015 + seed // 12
+        month = seed % 12 + 1
         start_date = f"{year}-{month}-01"
         end_date = f"{year}-{month}-28"
         return create_portfolio_instance(
@@ -238,9 +240,7 @@ def get_data(N, seed=1, real=False):
             0,
             log_returns=True,
             seed=seed,
-            tickers=[
-                stock_symbols[i] for i in rng.choice(len(stock_symbols), size=N, replace=False)
-            ],
+            tickers=stock_symbols[:N],
         )
 
         # data = YahooDataProvider(
