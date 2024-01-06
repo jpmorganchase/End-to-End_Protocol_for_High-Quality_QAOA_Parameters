@@ -177,7 +177,8 @@ def get_data(N, seed=1, real=False):
     """
     import datetime
 
-    from qiskit_finance.data_providers import RandomDataProvider, YahooDataProvider
+    from qiskit_finance.data_providers import (RandomDataProvider,
+                                               YahooDataProvider)
 
     tickers = []
     for i in range(N):
@@ -226,8 +227,10 @@ def get_data(N, seed=1, real=False):
         ]
 
         # switch to Atithi's implementation
-        rng = np.random.default_rng(seed)
-        date = rng.integers(0, 60)
+        # rng = np.random.default_rng(seed)
+        # date = rng.integers(0, 60)
+        
+        date = seed
         year = 2015 + date // 12
         month = date % 12 + 1
         start_date = f"{year}-{month}-01"
@@ -238,9 +241,10 @@ def get_data(N, seed=1, real=False):
             0,
             log_returns=True,
             seed=seed,
-            tickers=[
-                stock_symbols[i] for i in rng.choice(len(stock_symbols), size=N, replace=False)
-            ],
+            # tickers=[
+            #     stock_symbols[i] for i in rng.choice(len(stock_symbols), size=N, replace=False)
+            # ],
+            tickers=stock_symbols[:N]
         )
 
         # data = YahooDataProvider(
@@ -1404,4 +1408,5 @@ def get_sk_ini(p):
         )
         X0 = np.concatenate((gamma, beta), axis=0)
 
+    return X0
     return X0
