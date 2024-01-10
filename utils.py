@@ -240,7 +240,10 @@ def get_data(N, seed=1, real=False):
             0,
             log_returns=True,
             seed=seed,
-            tickers=stock_symbols[:N],
+            # tickers=[
+            #     stock_symbols[i] for i in rng.choice(len(stock_symbols), size=N, replace=False)
+            # ],
+            tickers=stock_symbols[:N]
         )
 
         # data = YahooDataProvider(
@@ -1404,4 +1407,5 @@ def get_sk_ini(p):
         )
         X0 = np.concatenate((gamma, beta), axis=0)
 
+    return X0
     return X0
