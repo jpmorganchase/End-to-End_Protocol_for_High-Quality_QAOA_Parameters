@@ -7,14 +7,13 @@ from typing import Any, Literal
 
 import networkx as nx
 import numpy as np
+from circuit_utils import get_configuration_cost_kw
 from numpy.typing import NDArray
 from qokit.maxcut import get_adjacency_matrix, maxcut_obj
 from qokit.qaoa_objective_maxcut import get_qaoa_maxcut_objective
 from qokit.qaoa_objective_portfolio import get_qaoa_portfolio_objective
 from qokit.utils import brute_force, precompute_energies
 from tqdm import tqdm
-
-from circuit_utils import get_configuration_cost_kw
 from utils import (get_adjusted_state, get_problem, get_real_problem,
                    precompute_energies_parallel)
 

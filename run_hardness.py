@@ -1,24 +1,22 @@
 import argparse
+import gc
 import pickle
 import warnings
 from time import sleep, time
-import gc
 
-import numpy as np
 import networkx as nx
-from qiskit_aer import AerSimulator
-from qiskit.algorithms.optimizers import SPSA
-from qiskit.utils import QuantumInstance
-from qiskit.opflow import AerPauliExpectation
-from qiskit.utils import algorithm_globals
-from qokit.parameter_utils import get_fixed_gamma_beta
-from qiskit.algorithms import QAOA
-from qiskit_optimization.problems.quadratic_program import QuadraticProgram
-from qiskit_optimization.applications import Maxcut
+import numpy as np
 from docplex.mp.model import Model
-from qiskit_optimization.translators import from_docplex_mp
-
 from evaluate_energy import get_evaluate_energy, load_problem
+from qiskit.algorithms import QAOA
+from qiskit.algorithms.optimizers import SPSA
+from qiskit.opflow import AerPauliExpectation
+from qiskit.utils import QuantumInstance, algorithm_globals
+from qiskit_aer import AerSimulator
+from qiskit_optimization.applications import Maxcut
+from qiskit_optimization.problems.quadratic_program import QuadraticProgram
+from qiskit_optimization.translators import from_docplex_mp
+from qokit.parameter_utils import get_fixed_gamma_beta
 
 warnings.filterwarnings("ignore")
 
