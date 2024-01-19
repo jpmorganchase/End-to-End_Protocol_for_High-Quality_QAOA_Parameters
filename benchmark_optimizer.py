@@ -94,25 +94,27 @@ if __name__ == "__main__":
             instances.append((instance, precomputed_energies))
             if problem == "po":
                 sense = 1
+                beta_scaling = -8
                 # initial_point = [-1.24727193, 1.04931211 * 8]
                 gamma, beta = get_sk_gamma_beta(p)
-                gamma, beta = gamma.tolist(), beta.tolist()
                 minval, maxval = instance["feasible_min"], instance["feasible_max"]
             elif problem == "skmodel":
                 sense = -1
+                beta_scaling = 4
                 gamma, beta = get_sk_gamma_beta(p)
-                gamma, beta = gamma.tolist(), beta.tolist()
                 minval, maxval = np.min(precomputed_energies), np.max(
                     precomputed_energies
                 )
             else:
                 sense = -1
+                beta_scaling = 4
                 gamma, beta, ar = get_fixed_gamma_beta(3, p, True)
+                gamma, beta = np.array(gamma), np.array(beta)
                 minval, maxval = np.min(precomputed_energies), np.max(
                     precomputed_energies
                 )
-            beta = [b * 4 for b in beta]
-            initial_point = gamma if args.fix_beta else gamma + beta
+            beta *= beta_scaling
+            initial_point = np.concatenate((gamma, beta))
 
             configs = [
                 # HyperparameterGrid(
