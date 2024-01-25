@@ -5,12 +5,11 @@ from functools import partial
 from pprint import pprint
 
 import numpy as np
+from evaluate_energy import get_evaluate_energy, load_problem
 from oscar import (CustomExecutor, HyperparameterGrid, HyperparameterTuner,
                    InterpolatedLandscapeExecutor, NLoptOptimizer,
                    QiskitOptimizer, plot_2d_landscape)
 from qokit.parameter_utils import get_fixed_gamma_beta, get_sk_gamma_beta
-
-from evaluate_energy import get_evaluate_energy, load_problem
 from restarting_cobyla import RECOBYLA
 
 sample_seed = 42
@@ -67,6 +66,7 @@ if __name__ == "__main__":
     if target == "max_ar":
         maxfev_pool = [200]
         shots_pool = [None]
+        rhobeg_pool = [0.1]
     elif target == "budget":
         if args.fix_beta:
             target += "-fix-beta"
@@ -75,15 +75,18 @@ if __name__ == "__main__":
             maxfev_pool = list(range(2 * p + 2, 20)) + list(range(20, 51, 5))
         # shots_pool = list(range(500, 2501, 100))
         shots_pool = budget // np.array(maxfev_pool)
+        rhobeg_pool = [0.1]
+    elif target == "rhobeg":
+        maxfev_pool = list(range(2 * p + 2, ((p + 1) // 2 + 1) * 5)) + list(range(((p + 1) // 2 + 1) * 5, 51, 5))
+        shots_pool = [None]
+        rhobeg_pool = np.linspace(0.01, 1, 100).tolist()
     else:
         raise NotImplementedError()
     # reps = 2
-    rhobeg_pool = np.linspace(0.01, 0.3, 30).tolist()
-    rhobeg_pool = [0.1]
-    xtol_pool = [0.045]
-    xtol_pool = np.linspace(0.01, 0.0, 4).tolist()
-    scaling = [2]
-    scaling = np.linspace(1.4, 3.2, 10).tolist()
+    # xtol_pool = [0.045]
+    # xtol_pool = np.linspace(0.01, 0.0, 4).tolist()
+    # scaling = [2]
+    # scaling = np.linspace(1.4, 3.2, 10).tolist()
 
     for i, n in enumerate(qubit_pool):
         instances = []
