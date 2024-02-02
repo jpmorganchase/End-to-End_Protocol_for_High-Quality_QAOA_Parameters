@@ -1,6 +1,7 @@
 from functools import partial
 from itertools import product
 from multiprocessing import Pool
+from time import sleep
 from typing import Optional, Union
 
 import numpy as np
@@ -121,12 +122,12 @@ def create_portfolio_instance(
 
         for symbol in tickers:
             ticker = yf.Ticker(symbol)
-            data = ticker.history(start=start_date, end=end_date)
-
-            if data.empty:
-                invalid_ticker_symbols.append(symbol)
-            else:
-                stock_data[symbol] = data
+            while True:
+                data = ticker.history(start=start_date, end=end_date)
+                if not data.empty:
+                    stock_data[symbol] = data
+                    break
+                sleep(2)
 
         top_N_ticker_symbols = tickers
 
