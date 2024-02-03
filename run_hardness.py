@@ -46,10 +46,9 @@ for seed in seed_pool:
     start_time = time()
     data.append([])
     gamma, beta = get_fixed_gamma_beta(3, p)
-    
+
     if args.qiskit:
         if args.problem == "maxcut":
-
             # class WeightedMaxcut(Maxcut):
             #     def to_quadratic_program(self) -> QuadraticProgram:
             #         mdl = Model(name="WeightedMaxcut")
@@ -70,7 +69,7 @@ for seed in seed_pool:
             problem = Maxcut(instance).to_quadratic_program()
         else:
             raise ValueError(f"Problem {problem} not implemented yet")
-        
+
         backend = AerSimulator(
             method="statevector",
             device="CPU" if args.cpu else "GPU",
@@ -118,7 +117,7 @@ for seed in seed_pool:
             simulator="c" if args.cpu else "auto",
         )
         beta = [b * 4 for b in beta]
-        
+
         initial_value = eval_func(gamma + beta)
         data[-1].append(initial_value)
         for i in range(p):

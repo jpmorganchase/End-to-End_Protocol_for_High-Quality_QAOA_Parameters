@@ -19,21 +19,24 @@ rng = np.random.default_rng(sample_seed)
 def shotted_measurement(params, function, shots, sense, fix_beta=None):
     if fix_beta is not None:
         params = np.concatenate([params, fix_beta])
-    mean, std = function(params)
     if shots is None:
+        mean = function(params)
         return sense * mean
+    mean, std = function(params)
     return sense * rng.normal(mean, std / np.sqrt(shots))
 
 
 def eval_point(point, eval_func, optimal_metric, sense, fix_beta=None):
     if fix_beta is not None:
         point = np.concatenate([point, fix_beta])
-    ar = (
+    result = eval_func(point)
+    if isinstance(result, tuple):
+        result = result[0]
+    return (
         sense
-        * (eval_func(point) - optimal_metric[int((sense + 1) / 2)])
+        * (result - optimal_metric[int((sense + 1) / 2)])
         / (optimal_metric[0] - optimal_metric[1])
     )
-    return ar
 
 
 def process_results(
@@ -63,10 +66,10 @@ if __name__ == "__main__":
     qubit_pool = list(range(args.n, args.n + 1, 2))
     budget = 10000
     target = args.target
+    shots_pool = [None]
+    rhobeg_pool = [0.1]
     if target == "max_ar":
         maxfev_pool = [200]
-        shots_pool = [None]
-        rhobeg_pool = [0.1]
     elif target == "budget":
         if args.fix_beta:
             target += "-fix-beta"
@@ -75,11 +78,13 @@ if __name__ == "__main__":
             maxfev_pool = list(range(2 * p + 2, 20)) + list(range(20, 51, 5))
         # shots_pool = list(range(500, 2501, 100))
         shots_pool = budget // np.array(maxfev_pool)
-        rhobeg_pool = [0.1]
     elif target == "rhobeg":
-        maxfev_pool = list(range(2 * p + 2, ((p + 1) // 2 + 1) * 5)) + list(range(((p + 1) // 2 + 1) * 5, 51, 5))
-        shots_pool = [None]
-        rhobeg_pool = np.linspace(0.01, 1, 100).tolist()
+        maxfev_pool = list(range(2 * p + 2, ((p + 1) // 2 + 1) * 5)) + list(
+            range(((p + 1) // 2 + 1) * 5, 51, 5)
+        )
+        rhobeg_pool = np.linspace(0.01, 2, 100).tolist()
+    elif target == "opt2steps":
+        maxfev_pool = [2 * p + 3]
     else:
         raise NotImplementedError()
     # reps = 2
@@ -89,18 +94,18 @@ if __name__ == "__main__":
     # scaling = np.linspace(1.4, 3.2, 10).tolist()
 
     for i, n in enumerate(qubit_pool):
-        instances = []
         results, optimal_params = {}, {}
         initial_ar = []
         for j, seed in enumerate(seed_pool):
             instance, precomputed_energies = load_problem(problem, n, seed, True)
-            instances.append((instance, precomputed_energies))
             if problem == "po":
                 sense = 1
                 beta_scaling = -8
                 # initial_point = [-1.24727193, 1.04931211 * 8]
                 gamma, beta = get_sk_gamma_beta(p)
                 minval, maxval = instance["feasible_min"], instance["feasible_max"]
+                if target != "rhobeg":
+                    rhobeg_pool = [1.]
             elif problem == "skmodel":
                 sense = -1
                 beta_scaling = 4
@@ -143,7 +148,7 @@ if __name__ == "__main__":
                 instance,
                 precomputed_energies,
                 p,
-                objective="expectation",
+                objective="expectation" if None in shots_pool else ("expectation", "std"),
                 simulator=simulator,
             )
             initial_ar.append(
@@ -161,13 +166,7 @@ if __name__ == "__main__":
             shotted_executor = CustomExecutor(
                 partial(
                     shotted_measurement,
-                    function=get_evaluate_energy(
-                        instance,
-                        precomputed_energies,
-                        p,
-                        objective=("expectation", "std"),
-                        simulator=simulator,
-                    ),
+                    function=eval_func,
                     sense=sense,
                     fix_beta=beta if args.fix_beta else None,
                 )
@@ -186,6 +185,7 @@ if __name__ == "__main__":
             params = tuner.process_results(
                 lambda method, ind, trace, res: trace.optimal_params
             )
+            del eval_func, shotted_executor, tuner, precomputed_energies
 
             for key, val in result.items():
                 if key not in results:
