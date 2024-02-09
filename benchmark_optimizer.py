@@ -5,11 +5,12 @@ from functools import partial
 from pprint import pprint
 
 import numpy as np
-from evaluate_energy import get_evaluate_energy, load_problem
 from oscar import (CustomExecutor, HyperparameterGrid, HyperparameterTuner,
                    InterpolatedLandscapeExecutor, NLoptOptimizer,
                    QiskitOptimizer, plot_2d_landscape)
 from qokit.parameter_utils import get_fixed_gamma_beta, get_sk_gamma_beta
+
+from evaluate_energy import get_evaluate_energy, load_problem
 from restarting_cobyla import RECOBYLA
 
 sample_seed = 42
@@ -55,6 +56,7 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--batch", type=int, default=0)
     parser.add_argument("--cpu", default=False, action="store_true")
     parser.add_argument("--fix-beta", default=False, action="store_true")
+    parser.add_argument("--precompute", default=False, action="store_true")
 
     args = parser.parse_args()
     print(args)
@@ -97,7 +99,7 @@ if __name__ == "__main__":
         results, optimal_params = {}, {}
         initial_ar = []
         for j, seed in enumerate(seed_pool):
-            instance, precomputed_energies = load_problem(problem, n, seed, True)
+            instance, precomputed_energies = load_problem(problem, n, seed, args.precompute)
             if problem == "po":
                 sense = 1
                 beta_scaling = -8
@@ -118,9 +120,10 @@ if __name__ == "__main__":
                 beta_scaling = 4
                 gamma, beta, ar = get_fixed_gamma_beta(3, p, True)
                 gamma, beta = np.array(gamma), np.array(beta)
-                minval, maxval = np.min(precomputed_energies), np.max(
-                    precomputed_energies
-                )
+                # minval, maxval = np.min(precomputed_energies), np.max(
+                #     precomputed_energies
+                # )
+                minval, maxval = -2.3995971277, 29.4702252835 # seed 258
             beta *= beta_scaling
             initial_point = np.concatenate((gamma, beta))
 
