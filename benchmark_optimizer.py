@@ -87,6 +87,7 @@ if __name__ == "__main__":
         rhobeg_pool = np.linspace(0.01, 2, 100).tolist()
     elif target == "opt2steps":
         maxfev_pool = [2 * p + 3]
+        shots_pool = budget // np.array(maxfev_pool)
     else:
         raise NotImplementedError()
     # reps = 2
