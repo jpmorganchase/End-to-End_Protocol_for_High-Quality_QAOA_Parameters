@@ -32,19 +32,19 @@ def create_portfolio_instance(
 
 
         Optional:
-        return_dtype (str): The return datatype for the correlation matrix
+        return_dtype (str): The return datatype for the covariance matrix
                      This is either numpy or panda
 
         tickers (list): The list of ticker symbols. If this is not provided, you will get
-        the targets and correlation for the random tickers and you can read the
-        symbols via accessing the correlation as a pandas dataframe
+        the targets and covariance for the random tickers and you can read the
+        symbols via accessing the covariance as a pandas dataframe
 
         log_returns: If we want the log returns instead of just returns
 
     -------------------
     Returns
     ---------
-    List(returns, correlation) : type List(np.array, np.array or pd.dataframe)
+    List(returns, covariance) : type List(np.array, np.array or pd.dataframe)
 
     """
 
@@ -111,7 +111,7 @@ def create_portfolio_instance(
                 top_N_ticker_symbols = ticker_list[:num_assets]
 
     ### This is if we are given a set of tickers
-    ### Then just download data for these, and compute correlation matrices and return vector
+    ### Then just download data for these, and compute covariance matrices and return vector
 
     else:
         num_assets = len(tickers)
@@ -151,24 +151,24 @@ def create_portfolio_instance(
         # print(df_returns.shape)
         df_mean_returns = df_returns.mean(axis=0)
 
-        correlation_matrix = df_returns.corr()
+        cov_matrix = df_returns.cov()
 
         if return_dtype in ("pandas", "pd"):
-            return [df_mean_returns, correlation_matrix]
+            return [df_mean_returns, cov_matrix]
         else:
-            return [df_mean_returns.to_numpy(), correlation_matrix.to_numpy()]
+            return [df_mean_returns.to_numpy(), cov_matrix.to_numpy()]
 
     elif log_returns:
         df_logreturns = np.log(df_close / df_close.shift(1)).dropna()
         df_meanlog_returns = df_logreturns.mean(axis=0)
 
-        correlation_matrix = df_logreturns.corr()
+        cov_matrix = df_logreturns.cov()
 
         if return_dtype in ("pandas", "pd"):
-            return [df_meanlog_returns, correlation_matrix]
+            return [df_meanlog_returns, cov_matrix]
 
         else:
-            return [df_meanlog_returns.to_numpy(), correlation_matrix.to_numpy()]
+            return [df_meanlog_returns.to_numpy(), cov_matrix.to_numpy()]
 
 
 def get_data(N, seed=1, real=False):

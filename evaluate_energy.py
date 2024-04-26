@@ -7,13 +7,14 @@ from typing import Any, Literal
 
 import networkx as nx
 import numpy as np
-from circuit_utils import get_configuration_cost_kw
 from numpy.typing import NDArray
 from qokit.maxcut import get_adjacency_matrix, maxcut_obj
 from qokit.qaoa_objective_maxcut import get_qaoa_maxcut_objective
 from qokit.qaoa_objective_portfolio import get_qaoa_portfolio_objective
 from qokit.utils import brute_force, precompute_energies
 from tqdm import tqdm
+
+from circuit_utils import get_configuration_cost_kw
 from utils import (get_adjusted_state, get_problem, get_real_problem,
                    precompute_energies_parallel)
 
@@ -69,9 +70,11 @@ def load_skmodel_problem(
 
     return (
         g,
-        precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n)
-        if precompute_energy
-        else None,
+        (
+            precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n)
+            if precompute_energy
+            else None
+        ),
     )
 
 
@@ -101,9 +104,11 @@ def load_maxcut_problem(
 
     return (
         g,
-        precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n)
-        if precompute_energy
-        else None,
+        (
+            precompute_energies(partial(maxcut_obj, w=get_adjacency_matrix(g)), n)
+            if precompute_energy
+            else None
+        ),
     )
 
 
@@ -117,8 +122,10 @@ def load_po_problem(n, seed, precompute_energy: bool = False):
         ]
     )
     scale = 1 / (
-        np.sqrt(np.mean(((po_problem["q"] * po_problem["cov"]) ** 2).flatten()))
-        + np.sqrt(np.mean((means_in_spins**2).flatten()))
+        np.sqrt(
+            np.mean((po_problem["q"] * po_problem["cov"]) ** 2)
+            + np.mean(means_in_spins**2)
+        )
     )
     po_problem["scale"] = scale
     po_problem["means"] = scale * po_problem["means"]
