@@ -239,7 +239,7 @@ def get_data(N, seed=1, real=False):
             start_date,
             end_date,
             0,
-            log_returns=True,
+            log_returns=False,
             seed=seed,
             # tickers=[
             #     stock_symbols[i] for i in rng.choice(len(stock_symbols), size=N, replace=False)
