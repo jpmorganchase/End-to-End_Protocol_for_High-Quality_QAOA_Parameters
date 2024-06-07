@@ -2,37 +2,30 @@ import argparse
 import itertools
 import pickle
 from functools import partial
-from pprint import pprint
+from math import pi
 
 import numpy as np
 from oscar import (CustomExecutor, HyperparameterGrid, HyperparameterTuner,
-                   InterpolatedLandscapeExecutor, NLoptOptimizer,
-                   QiskitOptimizer, plot_2d_landscape)
+                   Landscape, NLoptOptimizer, PDFOOptimizer, QiskitOptimizer,
+                   SciPyOptimizer)
 from qokit.parameter_utils import get_fixed_gamma_beta, get_sk_gamma_beta
 
-from evaluate_energy import get_evaluate_energy, load_problem
-from restarting_cobyla import RECOBYLA
+from evaluate_energy import load_problem
 
 sample_seed = 42
 rng = np.random.default_rng(sample_seed)
 
 
-def shotted_measurement(params, function, shots, sense, fix_beta=None):
-    if fix_beta is not None:
-        params = np.concatenate([params, fix_beta])
+def shotted_measurement(params, landscape, landscape_std, sense, shots=None):
+    energy = landscape.interpolator(np.asarray(params)).item()
     if shots is None:
-        mean = function(params)
-        return sense * mean
-    mean, std = function(params)
-    return sense * rng.normal(mean, std / np.sqrt(shots))
+        return sense * energy
+    energy_std = landscape_std.interpolator(np.asarray(params)).item() / np.sqrt(shots)
+    return sense * rng.normal(energy, energy_std)
 
 
-def eval_point(point, eval_func, optimal_metric, sense, fix_beta=None):
-    if fix_beta is not None:
-        point = np.concatenate([point, fix_beta])
+def eval_point(point, eval_func, optimal_metric, sense):
     result = eval_func(point)
-    if isinstance(result, tuple):
-        result = result[0]
     return (
         sense
         * (result - optimal_metric[int((sense + 1) / 2)])
@@ -40,142 +33,141 @@ def eval_point(point, eval_func, optimal_metric, sense, fix_beta=None):
     )
 
 
-def process_results(
-    method, i, trace, result, eval_func, optimal_metric, sense, fix_beta=None
-):
-    return eval_point(trace.optimal_params, eval_func, optimal_metric, sense, fix_beta)
+def process_results(i, j, trace, result, eval_func, optimal_metric, sense):
+    return [
+        eval_point(
+            trace.params_trace[np.argmin(trace.value_trace[:k])],
+            eval_func,
+            optimal_metric,
+            sense,
+        )
+        for k in range(1, 21)
+    ]
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--target", type=str, default="max_ar")
     parser.add_argument("--problem", type=str, default="maxcut")
     parser.add_argument("-n", type=int, default=12)
     parser.add_argument("-p", type=int, default=1)
-    parser.add_argument("-s", "--seed", type=int, default=1000)
-    parser.add_argument("-b", "--batch", type=int, default=0)
-    parser.add_argument("--cpu", default=False, action="store_true")
-    parser.add_argument("--fix-beta", default=False, action="store_true")
-    parser.add_argument("--precompute", default=False, action="store_true")
+    parser.add_argument("-s", "--seed", type=int, default=100)
+    parser.add_argument("-r", "--reps", type=int, default=10)
 
     args = parser.parse_args()
     print(args)
 
     problem = args.problem
     p = args.p
-    seed_pool = list(range(args.batch * args.seed, (args.batch + 1) * args.seed))
-    simulator = "c" if args.cpu else "auto"
+    if p == 1:
+        if problem == "po":
+            resolutions = [128, 128]
+            gamma_shift = pi / 4
+            beta_shift = pi / 4
+        elif problem == "maxcut":
+            resolutions = [256, 128]
+            gamma_shift = pi / 2
+            beta_shift = -pi / 4
+    else:
+        resolutions = [60] * 2 * p
+        gamma_shift = pi / 4
+        beta_shift = pi / 4
+    seed_pool = list(range(args.seed))
     qubit_pool = list(range(args.n, args.n + 1, 2))
     budget = 10000
-    target = args.target
-    shots_pool = [None]
-    rhobeg_pool = [0.1]
-    if target == "max_ar":
-        maxfev_pool = [200]
-    elif target == "budget":
-        if args.fix_beta:
-            target += "-fix-beta"
-            maxfev_pool = list(range(p + 2, 20)) + list(range(20, 51, 5))
+    maxfev_pool = list(range(2 * p + 2, 21))
+    shots_pool = budget // np.array(maxfev_pool)
+    rhobeg_pool = np.linspace(0.05, 0.5, 10).tolist()
+
+    configs = [
+        # HyperparameterGrid(
+        #     SciPyOptimizer,
+        #     optimizer=[
+        #         "COBYLA",
+        #     ],
+        #     options={"maxiter": maxfev_pool, "rhobeg": rhobeg_pool},
+        # ),
+        HyperparameterGrid(
+            NLoptOptimizer,
+            optimizer=[
+                "LN_COBYLA",
+                "LN_BOBYQA",
+                # "LN_NEWUOA",
+                "LN_NELDERMEAD",
+                "GN_ESCH",
+                "GN_DIRECT_L",
+                "GN_CRS2_LM",
+            ],
+            maxeval=[maxfev_pool[-1]],
+            initial_step=rhobeg_pool,
+            xtol_rel=[1e-5],
+            ftol_rel=[1e-5],
+        ),
+        HyperparameterGrid(
+            QiskitOptimizer,
+            optimizer=[
+                "SPSA",
+                "GSLS",
+                "IMFIL",
+                # "ESCH",
+                # "NFT",
+                # "SNOBFIT",
+            ],
+            maxiter=[maxfev_pool[-1]],
+            max_evals=[maxfev_pool[-1]],
+            max_fev=[maxfev_pool[-1]],
+        ),
+        # HyperparameterGrid(
+        #     PDFOOptimizer, optimizer=["bobyqa", "cobyla"], rhobeg=rhobeg_pool
+        # ),
+    ]
+
+    results = []
+    for i, (n, seed) in enumerate(itertools.product(qubit_pool, seed_pool)):
+        print(f"{n=}, {seed=}")
+        filename = f"data/{problem}/landscapes/{p=}/{n=}/{problem}-{p=}-{n=}-{seed=}-({2*gamma_shift:.2f}, {2*beta_shift:.2f})-{resolutions}"
+        landscape = Landscape.load(filename + "-expectation.pckl")
+        landscape.interpolate(fill_value=landscape.max())
+        landscape_std = Landscape.load(filename + "-std.pckl")
+        landscape_std.interpolate(fill_value=0)
+        results.append([])
+        instance, precomputed_energies = load_problem(problem, n, seed, True)
+        if problem == "po":
+            sense = 1
+            beta_scaling = -8
+            gamma, beta = get_sk_gamma_beta(p)
+            minval, maxval = instance["feasible_min"], instance["feasible_max"]
+        elif problem == "skmodel":
+            sense = -1
+            beta_scaling = 4
+            gamma, beta = get_sk_gamma_beta(p)
+            minval, maxval = np.min(precomputed_energies), np.max(precomputed_energies)
         else:
-            maxfev_pool = list(range(2 * p + 2, 20)) + list(range(20, 51, 5))
-        # shots_pool = list(range(500, 2501, 100))
-        shots_pool = budget // np.array(maxfev_pool)
-    elif target == "rhobeg":
-        maxfev_pool = list(range(2 * p + 2, ((p + 1) // 2 + 1) * 5)) + list(
-            range(((p + 1) // 2 + 1) * 5, 51, 5)
+            sense = -1
+            beta_scaling = 4
+            gamma, beta, ar = get_fixed_gamma_beta(3, p, True)
+            gamma, beta = np.array(gamma), np.array(beta)
+            minval, maxval = np.min(precomputed_energies), np.max(precomputed_energies)
+        beta *= beta_scaling
+        initial_point = np.concatenate((gamma, beta))
+
+        eval_func = partial(
+            shotted_measurement,
+            landscape=landscape,
+            landscape_std=landscape_std,
+            sense=sense,
         )
-        rhobeg_pool = np.linspace(0.01, 2, 100).tolist()
-    elif target == "opt2steps":
-        maxfev_pool = [2 * p + 3]
-        shots_pool = budget // np.array(maxfev_pool)
-    else:
-        raise NotImplementedError()
-    # reps = 2
-    # xtol_pool = [0.045]
-    # xtol_pool = np.linspace(0.01, 0.0, 4).tolist()
-    # scaling = [2]
-    # scaling = np.linspace(1.4, 3.2, 10).tolist()
 
-    for i, n in enumerate(qubit_pool):
-        results, optimal_params = {}, {}
-        initial_ar = []
-        for j, seed in enumerate(seed_pool):
-            instance, precomputed_energies = load_problem(problem, n, seed, args.precompute)
-            if problem == "po":
-                sense = 1
-                beta_scaling = -8
-                # initial_point = [-1.24727193, 1.04931211 * 8]
-                gamma, beta = get_sk_gamma_beta(p)
-                minval, maxval = instance["feasible_min"], instance["feasible_max"]
-                if target != "rhobeg":
-                    rhobeg_pool = [1.]
-            elif problem == "skmodel":
-                sense = -1
-                beta_scaling = 4
-                gamma, beta = get_sk_gamma_beta(p)
-                minval, maxval = np.min(precomputed_energies), np.max(
-                    precomputed_energies
-                )
-            else:
-                sense = -1
-                beta_scaling = 4
-                gamma, beta, ar = get_fixed_gamma_beta(3, p, True)
-                gamma, beta = np.array(gamma), np.array(beta)
-                # minval, maxval = np.min(precomputed_energies), np.max(
-                #     precomputed_energies
-                # )
-                minval, maxval = -2.3995971277, 29.4702252835 # seed 258
-            beta *= beta_scaling
-            initial_point = np.concatenate((gamma, beta))
-
-            configs = [
-                # HyperparameterGrid(
-                #     RECOBYLA(),
-                #     initial_point=[initial_point],
-                #     budget=budget,
-                #     rhobeg=rhobeg_pool,
-                #     xtol_abs=xtol_pool,
-                #     shots=shots_pool,
-                #     scaling=scaling,
-                # ),
-                HyperparameterGrid(
-                    NLoptOptimizer("LN_COBYLA"),
-                    initial_point=[initial_point],
-                    maxeval=maxfev_pool,
-                    initial_step=rhobeg_pool,
-                    ftol_rel=[1e-13],
-                    executor_kwargs={"shots": shots_pool},
-                ),
-            ]
-
-            eval_func = get_evaluate_energy(
-                instance,
-                precomputed_energies,
-                p,
-                objective="expectation" if None in shots_pool else ("expectation", "std"),
-                simulator=simulator,
+        for j in range(args.reps):
+            shotted_executor = CustomExecutor(eval_func)
+            run_configs = HyperparameterGrid(
+                executor=[shotted_executor],
+                initial_point=[initial_point.copy()],
+                shots=shots_pool,
+                bounds=[[(g - 0.7, g + 0.7) for g in gamma] + [(b - 0.7, b + 0.7) for b in beta]],
+                # bounds=[[landscape.param_bounds[0], landscape.param_bounds[1][::-1]]],
             )
-            initial_ar.append(
-                eval_point(
-                    initial_point,
-                    eval_func,
-                    (minval, maxval),
-                    sense,
-                    beta if args.fix_beta else None,
-                )
-            )
-            print(f"{p=} {n=} {seed=} initial_ar={initial_ar[-1]}", flush=True)
-
             tuner = HyperparameterTuner(configs)
-            shotted_executor = CustomExecutor(
-                partial(
-                    shotted_measurement,
-                    function=eval_func,
-                    sense=sense,
-                    fix_beta=beta if args.fix_beta else None,
-                )
-            )
-            tuner.run(shotted_executor)
+            tuner.run(run_configs)
 
             result = tuner.process_results(
                 partial(
@@ -183,42 +175,37 @@ if __name__ == "__main__":
                     eval_func=eval_func,
                     optimal_metric=(minval, maxval),
                     sense=sense,
-                    fix_beta=beta if args.fix_beta else None,
                 )
             )
-            params = tuner.process_results(
-                lambda method, ind, trace, res: trace.optimal_params
+            results[-1].append(
+                np.concatenate(
+                    [
+                        np.max(
+                            np.diagonal(
+                                np.asarray(res).reshape(
+                                    len(configs[k]["optimizer"]),
+                                    -1,
+                                    len(maxfev_pool),
+                                    maxfev_pool[-1],
+                                )[..., maxfev_pool[0] :],
+                                axis1=2,
+                                axis2=3,
+                            ),
+                            axis=(1, 2),
+                        ).reshape(-1)
+                        for k, res in enumerate(result)
+                    ]
+                )
             )
-            del eval_func, shotted_executor, tuner, precomputed_energies
-
-            for key, val in result.items():
-                if key not in results:
-                    results[key] = np.empty((len(seed_pool),) + val.shape)
-                results[key][j] = val
-
-            for key, val in params.items():
-                if key not in optimal_params:
-                    optimal_params[key] = np.empty((len(seed_pool),) + val.shape)
-                optimal_params[key][j] = val
-
-        for config in configs:
-            method = config.method
-            pickle.dump(
-                {
-                    "config": config,
-                    "result": results[method],
-                    "initial_ar": initial_ar,
-                    "optimal_params": optimal_params[method],
-                },
-                open(
-                    f"data/{problem}/configs/{target}/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}.pckl",
-                    "wb",
-                ),
-            )
-
-        print("Mean initial AR:", np.mean(initial_ar))
-        for i, (key, val) in enumerate(results.items()):
-            mean = np.mean(val, axis=0)
-            indices = np.argsort(mean.flat)[-1:-100:-1]
-            for r, c in zip(mean.flatten()[indices], configs[i].interpret(indices)):
-                print(r, c)
+    results = np.einsum("ijk->kij", results)
+    print(np.mean(results, axis=(1, 2)), np.std(results, axis=(1, 2)))
+    pickle.dump(
+        {
+            "config": configs,
+            "result": results,
+        },
+        open(
+            f"data/{problem}/optimizer/p{p}-s{seed_pool[0]}-{seed_pool[-1]}-r={args.reps}.pckl",
+            "wb",
+        ),
+    )
