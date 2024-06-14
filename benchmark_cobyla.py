@@ -1,8 +1,6 @@
 import argparse
-import itertools
 import pickle
 from functools import partial
-from pprint import pprint
 
 import numpy as np
 from oscar import (CustomExecutor, HyperparameterGrid, HyperparameterTuner,
@@ -88,11 +86,6 @@ if __name__ == "__main__":
         shots_pool = budget // np.array(maxfev_pool)
     else:
         raise NotImplementedError()
-    # reps = 2
-    # xtol_pool = [0.045]
-    # xtol_pool = np.linspace(0.01, 0.0, 4).tolist()
-    # scaling = [2]
-    # scaling = np.linspace(1.4, 3.2, 10).tolist()
 
     for i, n in enumerate(qubit_pool):
         results, optimal_params = {}, {}
@@ -126,15 +119,6 @@ if __name__ == "__main__":
             initial_point = np.concatenate((gamma, beta))
 
             configs = [
-                # HyperparameterGrid(
-                #     RECOBYLA(),
-                #     initial_point=[initial_point],
-                #     budget=budget,
-                #     rhobeg=rhobeg_pool,
-                #     xtol_abs=xtol_pool,
-                #     shots=shots_pool,
-                #     scaling=scaling,
-                # ),
                 HyperparameterGrid(
                     NLoptOptimizer("LN_COBYLA"),
                     initial_point=[initial_point],

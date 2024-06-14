@@ -9,18 +9,18 @@ import networkx as nx
 import numpy as np
 from numpy.typing import NDArray
 from qokit.maxcut import get_adjacency_matrix, maxcut_obj
+from qokit.portfolio_optimization import po_obj_func
 from qokit.qaoa_objective_maxcut import get_qaoa_maxcut_objective
 from qokit.qaoa_objective_portfolio import get_qaoa_portfolio_objective
 from qokit.utils import brute_force, precompute_energies
 from tqdm import tqdm
 
-from circuit_utils import get_configuration_cost_kw
 from utils import (get_adjusted_state, get_problem, get_real_problem,
                    precompute_energies_parallel)
 
 
 def load_problem(
-    problem: Literal["maxcut", "maxcut-unweighted", "po"],
+    problem: Literal["maxcut", "maxcut-unweighted", "po", "skmodel"],
     n: int,
     seed: int,
     precompute_energy: bool = False,
@@ -63,7 +63,6 @@ def load_skmodel_problem(
 
     rng = np.random.default_rng(seed)
     weights = rng.normal(size=n * (n - 1) // 2) / np.sqrt(n)
-    # weights = weights / np.sqrt(np.mean(weights**2))
 
     for i, (w, v) in enumerate(g.edges):
         g.edges[w, v]["weight"] = weights[i]
@@ -90,13 +89,7 @@ def load_maxcut_problem(
         component3 = {"mean": 10, "std_dev": 1, "weight": 0.2}
         components = [component1, component2, component3]
         weights = sample_gaussian_mixture(3 * n // 2, components, seed)
-        # weights = sample_gaussian_mixture(3 * n // 4, components, 279)
-        # generate random weights
-        # weights = np.random.uniform(0, 10, g.number_of_edges())
         # rescale following the rule in Eq. 6 of https://arxiv.org/pdf/2305.15201.pdf
-        # rng = np.random.default_rng(seed)
-        # weights = rng.choice(weights, size=2*len(weights))
-        # weights = np.tile(weights, 2)
         weights = weights / np.sqrt(np.mean(weights**2))
 
         for i, (w, v) in enumerate(g.edges):
@@ -135,7 +128,7 @@ def load_po_problem(n, seed, precompute_energy: bool = False):
     max_constrained = float("-inf")
     mean_constrained = 0
     total_constrained = 0
-    po_obj = partial(get_configuration_cost_kw, po_problem=po_problem)
+    po_obj = po_obj_func(po_problem=po_problem)
     for x in tqdm(kbits(n, k)):
         curr = po_obj(x)
         if curr < min_constrained:
