@@ -82,7 +82,7 @@ if __name__ == "__main__":
         maxfev_pool = list(range(2 * p + 2, ((p + 1) // 2 + 1) * 5)) + list(
             range(((p + 1) // 2 + 1) * 5, 51, 5)
         )
-        rhobeg_pool = np.linspace(0.01, 2, 100).tolist()
+        rhobeg_pool = np.linspace(0.01, 1, 20).tolist()
     elif target == "opt2steps":
         maxfev_pool = [2 * p + 3]
         shots_pool = budget // np.array(maxfev_pool)
@@ -111,7 +111,7 @@ if __name__ == "__main__":
                 sense = -1
                 beta_scaling = 4
                 gamma, beta = get_sk_gamma_beta(p)
-                minval, maxval = np.min(precomputed_energies), np.max(
+                minval, maxval = -np.min(precomputed_energies), -np.max(
                     precomputed_energies
                 )
             else:
@@ -119,10 +119,9 @@ if __name__ == "__main__":
                 beta_scaling = 4
                 gamma, beta, ar = get_fixed_gamma_beta(3, p, True)
                 gamma, beta = np.array(gamma), np.array(beta)
-                # minval, maxval = np.min(precomputed_energies), np.max(
-                #     precomputed_energies
-                # )
-                minval, maxval = -2.3995971277, 29.4702252835 # seed 258
+                minval, maxval = -np.min(precomputed_energies), -np.max(
+                    precomputed_energies
+                )
             beta *= beta_scaling
             initial_point = np.concatenate((gamma, beta))
 
