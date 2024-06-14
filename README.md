@@ -23,6 +23,7 @@ Additionally,
     - "rhobeg" grid searches the initial step size with exact simulation.
     - "max_ar" optimizes for the highest achievable AR for each instance with exact simulation.
     - "budget" grid searches budget allocation strategies (combinations of numbers of evaluations and numbers of shots per evaluation, given a total shot budget) with shot-based simulation.
+    - "opt2steps" optimizes for 2 iterations after the initial $2p+1$ evaluations.
 - `benchmark_optimizer.py` has `-r` `--reps` that controls how many times an optimization configuration is executed.
 
 The configurations of landscapes in `run_landscape.py` and `benchmark_optimizer.py` can be specified with in-file variables.
