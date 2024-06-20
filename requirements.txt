@@ -102,7 +102,7 @@ qiskit-optimization==0.6.0
 qiskit-terra==0.45.1
 -e git+https://github.com/jpmorganchase/QOKit.git@b38a32e92f6214a095dd76389f970df1734849ec#egg=qokit
 qwasm==1.0.1
-requests==2.31.0
+requests==2.32.2
 requests-ntlm==1.1.0
 rustworkx==0.13.2
 scikit-quant==0.8.2
