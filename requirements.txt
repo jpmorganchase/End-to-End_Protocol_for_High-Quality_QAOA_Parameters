@@ -119,7 +119,7 @@ stevedore==5.1.0
 symengine==0.11.0
 sympy==1.12
 teneva==0.14.8
-tornado==6.4
+tornado==6.4.1
 tqdm==4.66.1
 traitlets==5.14.1
 types-pkg-resources==0.1.3
