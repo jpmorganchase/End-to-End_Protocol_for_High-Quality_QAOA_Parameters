@@ -67,7 +67,7 @@ if __name__ == "__main__":
     shots_pool = [None]
     rhobeg_pool = [0.1]
     if target == "max_ar":
-        maxfev_pool = [200]
+        maxfev_pool = [1000]
     elif target == "budget":
         if args.fix_beta:
             target += "-fix-beta"
