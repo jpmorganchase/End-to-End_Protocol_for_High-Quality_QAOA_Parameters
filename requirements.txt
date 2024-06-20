@@ -96,7 +96,7 @@ qiskit-aer==0.13.1
 qiskit-algorithms==0.2.1
 qiskit-finance==0.4.0
 qiskit-ibm-provider==0.8.0
-qiskit-ibm-runtime==0.17.0
+qiskit-ibm-runtime==0.21.2
 qiskit-ibmq-provider==0.20.2
 qiskit-optimization==0.6.0
 qiskit-terra==0.45.1
