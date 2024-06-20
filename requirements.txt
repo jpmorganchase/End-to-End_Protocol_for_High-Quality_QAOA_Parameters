@@ -25,7 +25,7 @@ graphviz==0.20.1
 html5lib==1.1
 ibm-cloud-sdk-core==3.18.2
 ibm-platform-services==0.48.1
-idna==3.6
+idna==3.7
 importlib-resources==6.1.1
 inflection==0.5.1
 iniconfig==2.0.0
