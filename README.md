@@ -29,9 +29,11 @@ Additionally,
 The configurations of landscapes in `run_landscape.py` and `benchmark_optimizer.py` can be specified with in-file variables.
 
 ## Dependencies
+`pip install -r requirements.txt` will install all required packages. See a list of descriptions below.
+
 ### Pip-installable packages
 #### For array operation
-- `numpy<2.0`
+- `numpy`
 
 #### For plotting
 - `matplotlib`
@@ -51,4 +53,4 @@ The configurations of landscapes in `run_landscape.py` and `benchmark_optimizer.
 - `qokit`: [https://github.com/jpmorganchase/QOKit/tree/std](https://github.com/jpmorganchase/QOKit/tree/std) (The `std` branch is needed for computing the standard deviation of the energy)
 
 #### For grid search
-- `oscar`: [https://github.com/QUEST-UWMadison/OSCAR](https://github.com/QUEST-UWMadison/OSCAR) (`benchmark_optimizer.py`, `run_landscape.py`, and `reproduce_figures.ipynb` need version `1.0.x`; `benchmark_cobyla` needs version `0.4.x` (commit `4f65fc3`))
+- `oscar`: [https://github.com/QUEST-UWMadison/OSCAR](https://github.com/QUEST-UWMadison/OSCAR) (`benchmark_optimizer.py`, `run_landscape.py`, and `reproduce_figures.ipynb` need version `1.0.x`; `benchmark_cobyla` needs version `0.4.x` (commit `4f65fc3`); both are included in `requirements.txt`)
