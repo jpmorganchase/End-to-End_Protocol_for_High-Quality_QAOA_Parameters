@@ -1,5 +1,6 @@
 import argparse
 import itertools
+import os
 import pickle
 from functools import partial
 from math import pi
@@ -163,7 +164,10 @@ if __name__ == "__main__":
                 executor=[shotted_executor],
                 initial_point=[initial_point.copy()],
                 shots=shots_pool,
-                bounds=[[(g - 0.7, g + 0.7) for g in gamma] + [(b - 0.7, b + 0.7) for b in beta]],
+                bounds=[
+                    [(g - 0.7, g + 0.7) for g in gamma]
+                    + [(b - 0.7, b + 0.7) for b in beta]
+                ],
                 # bounds=[[landscape.param_bounds[0], landscape.param_bounds[1][::-1]]],
             )
             tuner = HyperparameterTuner(configs)
@@ -199,13 +203,12 @@ if __name__ == "__main__":
             )
     results = np.einsum("ijk->kij", results)
     print(np.mean(results, axis=(1, 2)), np.std(results, axis=(1, 2)))
+    savepath = f"data/{problem}/optimizer/p{p}-s{seed_pool[0]}-{seed_pool[-1]}-r={args.reps}.pckl"
+    os.makedirs(os.path.dirname(savepath), exist_ok=True)
     pickle.dump(
         {
             "config": configs,
             "result": results,
         },
-        open(
-            f"data/{problem}/optimizer/p{p}-s{seed_pool[0]}-{seed_pool[-1]}-r={args.reps}.pckl",
-            "wb",
-        ),
+        open(savepath, "wb"),
     )

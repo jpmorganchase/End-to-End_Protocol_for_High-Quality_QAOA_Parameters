@@ -2,7 +2,7 @@
 This is the repo accompanying the paper [End-to-End Protocol for High-Quality QAOA Parameters with Few Shots](TBA).
 
 ## Usage
-`reproduce_figures/` contains a notebook that can reproduce all the figures used in the paper. It relies on files in `data/`, which can be obtained by executing the following scripts:
+`reproduce_figures/` contains notebooks that can reproduce all the figures used in the paper. They rely on files in `data/`, which can be obtained by executing the following scripts:
 
 - `run_landscape.py` and `benchmark_optimizer` for optimizer benchmarking
 - `benchmark_cobyla.py` for COBYLA hyperparameter search and shot budget allocation study
@@ -15,7 +15,7 @@ The configurations of `benchmark_optimizer` and `benchmark_cobyla` are controlle
 - `-s` `--seed` controls the problem instance generation.
 - `-b` `--batch` groups many instances (seeds) into batches (useful for parallel execution).
 - `--cpu` if provided, use the cpu implementation of the `qokit` simulator. Default uses GPU.
-- `--precompute` controls whether the energies are precomputed for the simulator. In most of the cases, it is necessary (for computing the AR), but for extreme-scale simulations, it might be favorable to let a GPU implementation do the computation.
+- `--no-precompute` controls whether the energies are precomputed for the simulator. In most of the cases, this flag should not be specified (so that we have min and max values to compute the AR), but for extreme-scale simulations, it might be favorable to let a GPU implementation do the computation.
 - `--fix-beta` if provided, fix the beta parameters and only optimize for gamma.
 
 Additionally, 

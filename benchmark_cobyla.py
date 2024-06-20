@@ -1,4 +1,5 @@
 import argparse
+import os
 import pickle
 from functools import partial
 
@@ -52,7 +53,9 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--batch", type=int, default=0)
     parser.add_argument("--cpu", default=False, action="store_true")
     parser.add_argument("--fix-beta", default=False, action="store_true")
-    parser.add_argument("--precompute", default=False, action="store_true")
+    parser.add_argument(
+        "--no-precompute", target="precompute", default=False, action="store_true"
+    )
 
     args = parser.parse_args()
     print(args)
@@ -92,7 +95,7 @@ if __name__ == "__main__":
         initial_ar = []
         for j, seed in enumerate(seed_pool):
             instance, precomputed_energies = load_problem(
-                problem, n, seed, args.precompute
+                problem, n, seed, not args.precompute
             )
             if problem == "po":
                 sense = 1
@@ -188,6 +191,8 @@ if __name__ == "__main__":
 
         for config in configs:
             method = config.method
+            savepath = f"data/{problem}/configs/{target}/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}.pckl"
+            os.makedirs(os.path.dirname(savepath), exist_ok=True)
             pickle.dump(
                 {
                     "config": config,
@@ -195,10 +200,7 @@ if __name__ == "__main__":
                     "initial_ar": initial_ar,
                     "optimal_params": optimal_params[method],
                 },
-                open(
-                    f"data/{problem}/configs/{target}/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}.pckl",
-                    "wb",
-                ),
+                open(savepath, "wb"),
             )
 
         print("Mean initial AR:", np.mean(initial_ar))
