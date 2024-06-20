@@ -3,8 +3,8 @@ matplotlib==3.8.2
 networkx==3.2.1
 nlopt==2.7.1
 numpy==1.23.5
-oscar @ git+https://github.com/QUEST-UWMadison/OSCAR.git@4f65fc33c8ee24f03866c55e20dd42ef88a1dcc6 # For COYBLA experiments
-# oscar @ git+https://github.com/QUEST-UWMadison/OSCAR.git # For benchmarking optimizers
+oscar @ git+https://github.com/QUEST-UWMadison/OSCAR/tree/teneva.git # For benchmarking optimizers
+# oscar @ git+https://github.com/QUEST-UWMadison/OSCAR.git@4f65fc33c8ee24f03866c55e20dd42ef88a1dcc6 # For COYBLA experiments
 qokit @ git+https://github.com/jpmorganchase/QOKit.git@b38a32e92f6214a095dd76389f970df1734849ec#egg=qokit
 scikit-quant==0.8.2
 scipy==1.11.4
