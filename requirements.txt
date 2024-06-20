@@ -9,3 +9,4 @@ qokit @ git+https://github.com/jpmorganchase/QOKit.git@b38a32e92f6214a095dd76389
 scikit-quant==0.8.2
 scipy==1.11.4
 yfinance==0.2.35
+pandas==2.1.1
