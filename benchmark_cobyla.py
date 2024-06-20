@@ -31,7 +31,7 @@ def eval_point(point, eval_func, optimal_metric, sense, fix_beta=None):
         result = result[0]
     return (
         sense
-        * (result - optimal_metric[int((sense + 1) / 2)])
+        * (sense * result - optimal_metric[int((sense + 1) / 2)])
         / (optimal_metric[0] - optimal_metric[1])
     )
 
@@ -91,7 +91,9 @@ if __name__ == "__main__":
         results, optimal_params = {}, {}
         initial_ar = []
         for j, seed in enumerate(seed_pool):
-            instance, precomputed_energies = load_problem(problem, n, seed, args.precompute)
+            instance, precomputed_energies = load_problem(
+                problem, n, seed, args.precompute
+            )
             if problem == "po":
                 sense = 1
                 beta_scaling = -8
@@ -104,7 +106,7 @@ if __name__ == "__main__":
                 sense = -1
                 beta_scaling = 4
                 gamma, beta = get_sk_gamma_beta(p)
-                minval, maxval = -np.min(precomputed_energies), -np.max(
+                minval, maxval = np.min(precomputed_energies), np.max(
                     precomputed_energies
                 )
             else:
@@ -112,7 +114,7 @@ if __name__ == "__main__":
                 beta_scaling = 4
                 gamma, beta, ar = get_fixed_gamma_beta(3, p, True)
                 gamma, beta = np.array(gamma), np.array(beta)
-                minval, maxval = -np.min(precomputed_energies), -np.max(
+                minval, maxval = np.min(precomputed_energies), np.max(
                     precomputed_energies
                 )
             beta *= beta_scaling
@@ -133,7 +135,9 @@ if __name__ == "__main__":
                 instance,
                 precomputed_energies,
                 p,
-                objective="expectation" if None in shots_pool else ("expectation", "std"),
+                objective=(
+                    "expectation" if None in shots_pool else ("expectation", "std")
+                ),
                 simulator=simulator,
             )
             initial_ar.append(
@@ -152,7 +156,7 @@ if __name__ == "__main__":
                 partial(
                     shotted_measurement,
                     function=eval_func,
-                    sense=sense,
+                    sense=1,
                     fix_beta=beta if args.fix_beta else None,
                 )
             )
