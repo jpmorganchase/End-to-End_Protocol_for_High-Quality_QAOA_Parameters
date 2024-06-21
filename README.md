@@ -1,8 +1,8 @@
 # Shot-frugal Optimization
-This is the repo accompanying the paper [End-to-End Protocol for High-Quality QAOA Parameters with Few Shots](TBA).
+This is the repo accompanying the paper [End-to-End Protocol for High-Quality QAOA Parameters with Few Shots](TBA). The data is available at [https://doi.org/10.5281/zenodo.12209739](https://doi.org/10.5281/zenodo.12209739).
 
 ## Usage
-`reproduce_figures/` contains notebooks that can reproduce all the figures used in the paper. They rely on files in `data/`, which can be obtained by executing the following scripts:
+`reproduce_figures/` contains notebooks that can reproduce all the figures used in the paper. They rely on files in `data/` (moved to [Zenodo](https://doi.org/10.5281/zenodo.12209739) to shrink the size of the repo), which can be obtained by executing the following scripts:
 
 - `run_landscape.py` and `benchmark_optimizer` for optimizer benchmarking
 - `benchmark_cobyla.py` for COBYLA hyperparameter search and shot budget allocation study
