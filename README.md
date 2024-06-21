@@ -12,7 +12,7 @@ The configurations of `benchmark_optimizer` and `benchmark_cobyla` are controlle
 - `--problem` specifies the problem, can be "maxcut", "po", or "skmodel".
 - `-n` specifies the number of variables/qubits of the problem instance.
 - `-p` specifies the number of QAOA layers.
-- `-s` `--seed` controls the problem instance generation.
+- `-s` `--seed` controls the number of problem instances generated.
 
 Additionally, 
 - `benchmark_optimizer.py` has `-r` `--reps` that controls how many times an optimization configuration is executed.
