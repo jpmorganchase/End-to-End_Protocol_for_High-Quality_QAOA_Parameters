@@ -13,18 +13,19 @@ The configurations of `benchmark_optimizer` and `benchmark_cobyla` are controlle
 - `-n` specifies the number of variables/qubits of the problem instance.
 - `-p` specifies the number of QAOA layers.
 - `-s` `--seed` controls the problem instance generation.
-- `-b` `--batch` groups many instances (seeds) into batches (useful for parallel execution).
-- `--cpu` if provided, use the cpu implementation of the `qokit` simulator. Default uses GPU.
-- `--no-precompute` controls whether the energies are precomputed for the simulator. In most of the cases, this flag should not be specified (so that we have min and max values to compute the AR), but for extreme-scale simulations, it might be favorable to let a GPU implementation do the computation.
-- `--fix-beta` if provided, fix the beta parameters and only optimize for gamma.
 
 Additionally, 
-- `benchmark_cobyla.py` has `-t` `--target` that specifies its behavior.
-    - "rhobeg" grid searches the initial step size with exact simulation.
-    - "max_ar" optimizes for the highest achievable AR for each instance with exact simulation.
-    - "budget" grid searches budget allocation strategies (combinations of numbers of evaluations and numbers of shots per evaluation, given a total shot budget) with shot-based simulation.
-    - "opt2steps" optimizes for 2 iterations after the initial $2p+1$ evaluations.
 - `benchmark_optimizer.py` has `-r` `--reps` that controls how many times an optimization configuration is executed.
+- `benchmark_cobyla.py` has 
+    - `-t` `--target` that specifies its behavior.
+        - "rhobeg" grid searches the initial step size with exact simulation.
+        - "max_ar" optimizes for the highest achievable AR for each instance with exact simulation.
+        - "budget" grid searches budget allocation strategies (combinations of numbers of evaluations and numbers of shots per evaluation, given a total shot budget) with shot-based simulation.
+        - "opt2steps" optimizes for 2 iterations after the initial $2p+1$ evaluations.
+    - `-b` `--batch` groups many instances (seeds) into batches (useful for parallel execution).
+    - `--cpu` if provided, use the cpu implementation of the `qokit` simulator. Default uses GPU.
+    - `--no-precompute` controls whether the energies are precomputed for the simulator. In most of the cases, this flag should not be specified (so that we have min and max values to compute the AR), but for extreme-scale simulations, it might be favorable to let a GPU implementation do the computation.
+    - `--fix-beta` if provided, fix the beta parameters and only optimize for gamma.
 
 The configurations of landscapes in `run_landscape.py` and `benchmark_optimizer.py` can be specified with in-file variables.
 

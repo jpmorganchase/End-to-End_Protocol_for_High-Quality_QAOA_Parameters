@@ -54,7 +54,7 @@ if __name__ == "__main__":
     parser.add_argument("--cpu", default=False, action="store_true")
     parser.add_argument("--fix-beta", default=False, action="store_true")
     parser.add_argument(
-        "--no-precompute", target="precompute", default=False, action="store_true"
+        "--no-precompute", dest="precompute", default=False, action="store_true"
     )
 
     args = parser.parse_args()
