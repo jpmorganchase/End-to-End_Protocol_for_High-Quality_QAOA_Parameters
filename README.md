@@ -1,5 +1,5 @@
 # Shot-frugal Optimization
-This is the repo accompanying the paper [End-to-End Protocol for High-Quality QAOA Parameters with Few Shots](TBA). The data is available at [https://doi.org/10.5281/zenodo.12209739](https://doi.org/10.5281/zenodo.12209739).
+This is the repo accompanying the paper [End-to-End Protocol for High-Quality QAOA Parameters with Few Shots](https://arxiv.org/abs/2408.00557). The data is available at [https://doi.org/10.5281/zenodo.12209739](https://doi.org/10.5281/zenodo.12209739).
 
 ## Usage
 `reproduce_figures/` contains notebooks that can reproduce all the figures used in the paper. They rely on files in `data/` (moved to [Zenodo](https://doi.org/10.5281/zenodo.12209739) to shrink the size of the repo), which can be obtained by executing the following scripts:
