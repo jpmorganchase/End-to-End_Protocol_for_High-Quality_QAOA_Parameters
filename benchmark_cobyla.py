@@ -4,11 +4,18 @@ import pickle
 from functools import partial
 
 import numpy as np
-from oscar import (CustomExecutor, HyperparameterGrid, HyperparameterTuner,
-                   NLoptOptimizer)
+from oscar import (
+    CustomExecutor,
+    HyperparameterGrid,
+    HyperparameterTuner,
+    NLoptOptimizer,
+    CustomOptimizer,
+)
 from qokit.parameter_utils import get_fixed_gamma_beta, get_sk_gamma_beta
 
 from evaluate_energy import get_evaluate_energy, load_problem
+import pybobyqa
+
 
 sample_seed = 42
 rng = np.random.default_rng(sample_seed)
@@ -41,6 +48,16 @@ def process_results(
     method, i, trace, result, eval_func, optimal_metric, sense, fix_beta=None
 ):
     return eval_point(trace.optimal_params, eval_func, optimal_metric, sense, fix_beta)
+
+
+def pybobyqa_solve(*args, **kwargs):
+    res = pybobyqa.solve(*args, **kwargs)
+    return {
+        "optimal_params": res.x,
+        "optimal_value": res.f,
+        "num_iters": res.nf,
+        "num_fun_evals": res.nf,
+    }
 
 
 if __name__ == "__main__":
@@ -76,7 +93,7 @@ if __name__ == "__main__":
             target += "-fix-beta"
             maxfev_pool = list(range(p + 2, 20)) + list(range(20, 51, 5))
         else:
-            maxfev_pool = list(range(2 * p + 2, 20)) + list(range(20, 51, 5))
+            maxfev_pool = list(range(4 * p + 1, 30)) + list(range(30, 51, 5))
         # shots_pool = list(range(500, 2501, 100))
         shots_pool = budget // np.array(maxfev_pool)
     elif target == "rhobeg":
@@ -124,12 +141,19 @@ if __name__ == "__main__":
             initial_point = np.concatenate((gamma, beta))
 
             configs = [
+                # HyperparameterGrid(
+                #     NLoptOptimizer("LN_BOBYQA"),
+                #     initial_point=[initial_point],
+                #     maxeval=maxfev_pool,
+                #     initial_step=rhobeg_pool,
+                #     ftol_rel=[1e-13],
+                #     executor_kwargs={"shots": shots_pool},
+                # ),
                 HyperparameterGrid(
-                    NLoptOptimizer("LN_COBYLA"),
+                    CustomOptimizer(pybobyqa_solve, name="Py-BOBYQA"),
                     initial_point=[initial_point],
-                    maxeval=maxfev_pool,
-                    initial_step=rhobeg_pool,
-                    ftol_rel=[1e-13],
+                    maxfun=maxfev_pool,
+                    rhobeg=rhobeg_pool,
                     executor_kwargs={"shots": shots_pool},
                 ),
             ]
