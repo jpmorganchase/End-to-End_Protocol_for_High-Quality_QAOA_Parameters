@@ -82,7 +82,7 @@ if __name__ == "__main__":
     seed_pool = list(range(args.batch * args.seed, (args.batch + 1) * args.seed))
     simulator = "c" if args.cpu else "auto"
     qubit_pool = list(range(args.n, args.n + 1, 2))
-    budget = 10000
+    budget = 14000
     target = args.target
     shots_pool = [None]
     rhobeg_pool = [0.1]
@@ -93,7 +93,7 @@ if __name__ == "__main__":
             target += "-fix-beta"
             maxfev_pool = list(range(p + 2, 20)) + list(range(20, 51, 5))
         else:
-            maxfev_pool = list(range(4 * p + 1, 30)) + list(range(30, 51, 5))
+            maxfev_pool = list(range(4 * p + 1, 30)) + list(range(30, 61, 5))
         # shots_pool = list(range(500, 2501, 100))
         shots_pool = budget // np.array(maxfev_pool)
     elif target == "rhobeg":
@@ -215,7 +215,7 @@ if __name__ == "__main__":
 
         for config in configs:
             method = config.method
-            savepath = f"data/{problem}/configs/{target}/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}.pckl"
+            savepath = f"data/{problem}/configs/{target}/{method}-p{p}-q{n}-s{seed_pool[0]}-{seed_pool[-1]}_budget{budget}.pckl"
             os.makedirs(os.path.dirname(savepath), exist_ok=True)
             pickle.dump(
                 {
